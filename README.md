@@ -1,14 +1,5 @@
 # 95 CLI
 
-```
- █████╗ ███████╗
-██╔══██╗██╔════╝
-╚██████║███████╗
- ╚═══██║╚════██║
- █████╔╝███████║
- ╚════╝ ╚══════╝
-```
-
 **Build your coding skills, one challenge at a time**
 
 A command-line tool for practicing coding challenges with real-time validation and progress tracking. Your code runs locally, gets validated server-side, and tracks your progress as you level up your skills.
