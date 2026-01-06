@@ -109,6 +109,6 @@ func (h *httpServerRunner) stopServer() {
 		// Process exited
 	case <-time.After(2 * time.Second):
 		// Force kill
-		killProcess(-h.cmd.Process.Pid)
+		killProcess(h.cmd.Process.Pid)
 	}
 }
