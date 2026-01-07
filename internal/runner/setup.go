@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/chibuka/95-cli/client"
+	"github.com/chibuka/95/client"
 )
 
 // ExecuteSetup performs setup operations before running a test

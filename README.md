@@ -18,12 +18,12 @@ A command-line tool for practicing coding challenges with real-time validation a
 
 **macOS/Linux:**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chibuka/95-cli/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/chibuka/95/main/install.sh | bash
 ```
 
 ### Manual Installation
 
-1. Download the latest binary for your platform from [Releases](https://github.com/chibuka/95-cli/releases)
+1. Download the latest binary for your platform from [Releases](https://github.com/chibuka/95/releases)
 2. Extract and move to your PATH:
    ```bash
    # macOS/Linux
@@ -36,8 +36,8 @@ curl -fsSL https://raw.githubusercontent.com/chibuka/95-cli/main/install.sh | ba
 Requirements: Go 1.23+
 
 ```bash
-git clone https://github.com/chibuka/95-cli.git
-cd 95-cli
+git clone https://github.com/chibuka/95.git
+cd 95
 go build -o 95
 sudo mv 95 /usr/local/bin/
 ```
@@ -255,7 +255,7 @@ MIT License - see [LICENSE](LICENSE) for details
 ## Links
 
 - **Website:** https://95ninefive.dev
-- **GitHub:** https://github.com/chibuka/95-cli
+- **GitHub:** https://github.com/chibuka/95
 - **Personal GitHub:** https://github.com/grainme
 
 ---

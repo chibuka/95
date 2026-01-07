@@ -3,11 +3,11 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/chibuka/95-cli/client"
-	"github.com/chibuka/95-cli/internal/config"
-	"github.com/chibuka/95-cli/internal/runner"
-	"github.com/chibuka/95-cli/ui"
-	"github.com/chibuka/95-cli/ui/messages"
+	"github.com/chibuka/95/client"
+	"github.com/chibuka/95/internal/config"
+	"github.com/chibuka/95/internal/runner"
+	"github.com/chibuka/95/ui"
+	"github.com/chibuka/95/ui/messages"
 )
 
 func runOrTest(stageUuid string, isSubmit bool) error {

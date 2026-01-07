@@ -3,7 +3,7 @@ package runner
 import (
 	"fmt"
 
-	"github.com/chibuka/95-cli/client"
+	"github.com/chibuka/95/client"
 )
 
 func RunHTTPTest(programConfig *client.ProgramConfig, serverConfig *client.ServerConfig,

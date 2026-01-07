@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/chibuka/95-cli/ui/messages"
+	"github.com/chibuka/95/ui/messages"
 )
 
 var (

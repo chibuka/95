@@ -6,7 +6,7 @@ package cmd
 import (
 	"os"
 
-	"github.com/chibuka/95-cli/internal/config"
+	"github.com/chibuka/95/internal/config"
 	"github.com/spf13/cobra"
 )
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/chibuka/95-cli/client"
+	"github.com/chibuka/95/client"
 )
 
 // getTestInput returns the input to display for a test

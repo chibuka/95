@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/lipgloss"
-	"github.com/chibuka/95-cli/client"
+	"github.com/chibuka/95/client"
 	"github.com/spf13/cobra"
 )
 

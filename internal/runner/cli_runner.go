@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chibuka/95-cli/client"
+	"github.com/chibuka/95/client"
 )
 
 func RunCLITest(runCommand string, stdin string, timeoutSeconds int) (*client.TestResult, error) {

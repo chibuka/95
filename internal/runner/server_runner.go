@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/chibuka/95-cli/client"
+	"github.com/chibuka/95/client"
 )
 
 type httpServerRunner struct {

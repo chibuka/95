@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/chibuka/95-cli/internal/config"
+	"github.com/chibuka/95/internal/config"
 )
 
 type TestConfig struct {
