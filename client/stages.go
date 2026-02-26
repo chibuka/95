@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"strconv"
 
 	"github.com/chibuka/95-cli/internal/config"
 )
@@ -237,7 +236,7 @@ func (e *HttpError) Error() string {
 
 func sendRequest(req *http.Request, cfg *config.Config) ([]byte, error) {
 	// Attempt the request
-	body, statusCode, err := doRequest(req, cfg.AccessToken, cfg.UserId)
+	body, statusCode, err := doRequest(req, cfg.AccessToken)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +255,7 @@ func sendRequest(req *http.Request, cfg *config.Config) ([]byte, error) {
 	}
 
 	// Retry the request with new token
-	body, statusCode, err = doRequest(req, cfg.AccessToken, cfg.UserId)
+	body, statusCode, err = doRequest(req, cfg.AccessToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send retry request: %w", err)
 	}
@@ -290,7 +289,7 @@ func performTokenRefresh(cfg *config.Config) error {
 	return nil
 }
 
-func doRequest(req *http.Request, token string, userId int) ([]byte, int, error) {
+func doRequest(req *http.Request, token string) ([]byte, int, error) {
 	// Rewind body if it was read previously (for retries!)
 	if req.GetBody != nil {
 		bodyCopy, err := req.GetBody()
@@ -301,7 +300,6 @@ func doRequest(req *http.Request, token string, userId int) ([]byte, int, error)
 	}
 
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	req.Header.Set("X-User-Id", strconv.Itoa(userId))
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {

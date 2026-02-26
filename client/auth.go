@@ -10,8 +10,15 @@ import (
 	"os"
 	"strings"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/chibuka/95-cli/internal/config"
 	"github.com/pkg/browser"
+)
+
+var (
+	authDim    = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
+	authGreen  = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
+	authOrange = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
 )
 
 type AuthRequest struct {
@@ -19,12 +26,10 @@ type AuthRequest struct {
 }
 
 type AuthResponse struct {
-	AccessToken  string `json:"accessToken"`
-	RefreshToken string `json:"refreshToken"`
-	ExpiresIn    int    `json:"expiresIn"`
-	UserId       int    `json:"userId"`
-	Username     string `json:"username"`
-	Email        string `json:"email"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	UserId       string `json:"id"`
+	Login        string `json:"login"`
 }
 
 func Login() error {
@@ -34,14 +39,14 @@ func Login() error {
 	apiURL := getAPIURL()
 
 	// Start local server
-	fmt.Println("Starting local server on port 9417...")
+	fmt.Println(authDim.Render("  ● Starting server on port 9417..."))
 	err := startLocalServer(codeChan, apiURL)
 	if err != nil {
 		return err
 	}
 
 	// Open the browser to CLI login endpoint
-	fmt.Printf("Opening browser for GitHub authentication at %s...\n", apiURL)
+	fmt.Println(authDim.Render("  ● Opening browser for GitHub OAuth at " + apiURL))
 	err = browser.OpenURL(fmt.Sprintf("%s/oauth2/cli-login", apiURL))
 	if err != nil {
 		return err
@@ -49,19 +54,18 @@ func Login() error {
 
 	// Race: Web POST vs Manual paste
 	go func() {
-		fmt.Println("\nIf browser doesn't auto-submit, paste your code here:")
+		fmt.Println(authDim.Render("\n  If browser doesn't auto-submit, paste your code here:"))
 		var code string
 		_, err := fmt.Scanln(&code)
 		if err != nil {
-			// If scan fails (e.g. EOF), we just return from the goroutine
 			return
 		}
 		codeChan <- code
 	}()
 
-	fmt.Println("Waiting for OTP code...")
+	fmt.Println(authDim.Render("  ● Waiting for OTP code..."))
 	otp := <-codeChan
-	fmt.Println("✓ OTP received!")
+	fmt.Println(authGreen.Render("  ✓ OTP received!"))
 
 	auth, err := LoginWithCode(otp, apiURL)
 	if err != nil {
@@ -73,7 +77,7 @@ func Login() error {
 		AccessToken:  auth.AccessToken,
 		RefreshToken: auth.RefreshToken,
 		UserId:       auth.UserId,
-		Username:     auth.Username,
+		Username:     auth.Login,
 	}
 
 	err = cfg.Save()
@@ -84,9 +88,6 @@ func Login() error {
 }
 
 func getAPIURL() string {
-	if apiURL := os.Getenv("API_URL"); apiURL != "" {
-		return apiURL
-	}
 	if os.Getenv("DEV_MODE") == "true" {
 		return config.LocalAPIURL
 	}
@@ -111,7 +112,9 @@ func startLocalServer(codeChan chan string, apiURL string) error {
 
 func handleSubmit(codeChan chan string, apiURL string) http.HandlerFunc {
 	return func(res http.ResponseWriter, req *http.Request) {
-		fmt.Printf("꩜ Received %s request to /submit\n", req.Method)
+		if req.Method != "OPTIONS" {
+			fmt.Println(authDim.Render("  ● Callback received"))
+		}
 
 		res.Header().Set("Access-Control-Allow-Origin", apiURL)
 		res.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
@@ -124,19 +127,19 @@ func handleSubmit(codeChan chan string, apiURL string) http.HandlerFunc {
 
 		body, err := io.ReadAll(req.Body)
 		if err != nil {
-			fmt.Println("❌ Error reading request body:", err)
+			fmt.Println(authOrange.Render("  ✗ Error reading request body: " + err.Error()))
 			http.Error(res, "Couldn't read request body", http.StatusInternalServerError)
 			return
 		}
 
 		otp := strings.TrimSpace(string(body))
 		if otp == "" {
-			fmt.Println("❌ Empty OTP code")
+			fmt.Println(authOrange.Render("  ✗ Empty OTP code"))
 			http.Error(res, "Empty OTP code", http.StatusBadRequest)
 			return
 		}
 
-		fmt.Println("⛩️ Sending OTP to channel...")
+		fmt.Println(authDim.Render("  ● Processing..."))
 		codeChan <- otp
 
 		_, _ = res.Write([]byte("Success! You can close this window."))
@@ -176,7 +179,7 @@ func LoginWithCode(otp string, apiURL string) (*AuthResponse, error) {
 }
 
 func RefreshToken(refreshToken string, apiURL string) (*AuthResponse, error) {
-	reqBody := map[string]string{"refreshToken": refreshToken}
+	reqBody := map[string]string{"refresh_token": refreshToken}
 	jsonData, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal refresh request: %w", err)
