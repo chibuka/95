@@ -31,7 +31,6 @@ type entry struct {
 }
 
 var allEntries = []entry{
-	{"login", "authenticate with GitHub", false},
 	{"init", "initialize project run command", false},
 	{"test", "run tests locally", true},
 	{"run", "submit your solution", true},

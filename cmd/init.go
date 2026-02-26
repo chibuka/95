@@ -10,7 +10,7 @@ import (
 )
 
 func doInit() error {
-	p := tea.NewProgram(picker.New(picker.GoOptions))
+	p := tea.NewProgram(picker.New())
 	result, err := p.Run()
 	if err != nil {
 		return fmt.Errorf("picker error: %w", err)
@@ -26,11 +26,11 @@ func doInit() error {
 		return nil // user quit picker — back to dashboard
 	}
 
-	if err := config.SaveProjectConfig(chosen.Command, "go"); err != nil {
+	if err := config.SaveProjectConfig(chosen.Command, m.Language()); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
-	fmt.Printf("\n  ✓ initialized — %s\n\n", chosen.Command)
+	fmt.Printf("\n  ✓ initialized — %s (%s)\n\n", chosen.Command, m.Language())
 	return nil
 }
 
