@@ -6,7 +6,6 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/chibuka/95-cli/ui/banner"
 )
 
 // Option represents a predefined run command.
@@ -228,8 +227,6 @@ func (m Model) View() string {
 
 	var b strings.Builder
 	b.WriteString("\n")
-	b.WriteString(banner.Render())
-	b.WriteString("\n\n")
 	b.WriteString("  " + divider + "\n")
 	b.WriteString("\n")
 

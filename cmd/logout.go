@@ -6,7 +6,6 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/chibuka/95-cli/client"
 	"github.com/chibuka/95-cli/internal/config"
-	"github.com/chibuka/95-cli/ui/banner"
 	"github.com/spf13/cobra"
 )
 
@@ -17,9 +16,6 @@ func doLogout() error {
 		dim   = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 	)
 
-	fmt.Println()
-	fmt.Println(banner.Render())
-	fmt.Println()
 	fmt.Println(muted.Render("  ◇ Signing out"))
 	fmt.Println()
 

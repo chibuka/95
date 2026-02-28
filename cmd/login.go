@@ -5,7 +5,6 @@ import (
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/chibuka/95-cli/client"
-	"github.com/chibuka/95-cli/ui/banner"
 	"github.com/spf13/cobra"
 )
 
@@ -17,9 +16,6 @@ func doLogin() error {
 		dim    = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
 	)
 
-	fmt.Println()
-	fmt.Println(banner.Render())
-	fmt.Println()
 	fmt.Println(muted.Render("  ◇ Authenticating"))
 	fmt.Println()
 	fmt.Println("  " + dim.Render("● Opening browser for GitHub OAuth..."))

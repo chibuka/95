@@ -20,8 +20,9 @@ type Action struct {
 type dashState int
 
 const (
-	stateMenu  dashState = iota
-	stateInput           // UUID prompt for "test" / "run"
+	stateMenu   dashState = iota
+	stateInput            // UUID prompt for "test" / "run"
+	stateResult           // show result/error from previous command
 )
 
 type entry struct {
@@ -54,25 +55,33 @@ var (
 	whiteStyle   = lipgloss.NewStyle().Foreground(white)
 	hintStyle    = lipgloss.NewStyle().Foreground(muted)
 	dividerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("235"))
+	errStyle     = lipgloss.NewStyle().Foreground(orange)
 )
 
 // Model is the interactive dashboard bubbletea model.
 type Model struct {
-	state    dashState
-	cursor   int
-	input    textinput.Model
-	username string
-	dir      string
-	action   *Action
+	state     dashState
+	cursor    int
+	input     textinput.Model
+	username  string
+	dir       string
+	action    *Action
+	resultMsg string
 }
 
 // New creates a fresh dashboard model with user context.
-func New(username, dir string) Model {
+// lastErr is an optional error message from the previous command; if non-empty
+// the dashboard opens in stateResult so the user can read it and press esc to retry.
+func New(username, dir, lastErr string) Model {
 	ti := textinput.New()
 	ti.Placeholder = "paste stage UUID here..."
 	ti.CharLimit = 64
 	ti.Width = 44
-	return Model{username: username, dir: dir, input: ti}
+	state := stateMenu
+	if lastErr != "" {
+		state = stateResult
+	}
+	return Model{username: username, dir: dir, input: ti, state: state, resultMsg: lastErr}
 }
 
 func (m Model) visibleEntries() []entry {
@@ -86,6 +95,21 @@ func (m Model) Init() tea.Cmd { return nil }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.state {
+	case stateResult:
+		key, ok := msg.(tea.KeyMsg)
+		if !ok {
+			return m, nil
+		}
+		switch key.String() {
+		case "ctrl+c":
+			m.action = &Action{Quit: true}
+			return m, tea.Quit
+		default:
+			m.state = stateMenu
+			m.resultMsg = ""
+		}
+		return m, nil
+
 	case stateMenu:
 		key, ok := msg.(tea.KeyMsg)
 		if !ok {
@@ -179,6 +203,9 @@ func (m Model) View() string {
 	b.WriteString("  " + divider + "\n")
 
 	switch m.state {
+	case stateResult:
+		b.WriteString("  " + errStyle.Render("✗  "+m.resultMsg) + "\n\n")
+		b.WriteString(hintStyle.Render("  any key to retry   ctrl+c quit"))
 	case stateMenu:
 		b.WriteString(hintStyle.Render("  ↑↓ navigate   enter select   q quit"))
 	case stateInput:

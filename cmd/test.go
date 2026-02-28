@@ -3,13 +3,19 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/charmbracelet/lipgloss"
 	"github.com/chibuka/95-cli/ui/banner"
 	"github.com/spf13/cobra"
 )
 
+var mutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+
 func doTest(uuid string) error {
-	fmt.Println()
 	fmt.Println(banner.Render())
+	fmt.Println()
+	fmt.Println(fmt.Sprintf("  %s                              %s\n",
+		mutedStyle.Render("95™"),
+		mutedStyle.Render("v"+banner.Version)))
 	fmt.Println()
 	return testOnServer(uuid)
 }
