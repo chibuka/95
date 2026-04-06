@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,7 +21,7 @@ type Config struct {
 	APIUrl       string `json:"api_url" mapstructure:"api_url"`
 	AccessToken  string `json:"access_token" mapstructure:"access_token"`
 	RefreshToken string `json:"refresh_token" mapstructure:"refresh_token"`
-	UserId       int    `json:"user_id" mapstructure:"user_id"`
+	UserId       string `json:"user_id" mapstructure:"user_id"`
 	Username     string `json:"username" mapstructure:"username"`
 }
 
@@ -58,6 +59,12 @@ func Load() (*Config, error) {
 	err := viper.ReadInConfig()
 	if err != nil {
 		if _, ok := err.(viper.ConfigFileNotFoundError); ok {
+			return &Config{}, nil
+		}
+		// After config.Clear() the directory itself is gone — treat that as
+		// "not authenticated" rather than a hard error.
+		var pathErr *os.PathError
+		if errors.As(err, &pathErr) {
 			return &Config{}, nil
 		}
 		return nil, err
@@ -110,7 +117,7 @@ func LoadProjectConfig() (*ProjectConfig, error) {
 
 	v := viper.New()
 	v.AddConfigPath(currDir)
-	v.SetConfigFile("config")
+	v.SetConfigName("config")
 	v.SetConfigType("json")
 
 	err = v.ReadInConfig()
@@ -137,7 +144,7 @@ func SaveProjectConfig(runCommand string, language string) error {
 
 	v := viper.New()
 	v.AddConfigPath(currDir)
-	v.SetConfigFile("config")
+	v.SetConfigName("config")
 	v.SetConfigType("json")
 	v.Set("runCommand", runCommand)
 	v.Set("language", language)
@@ -148,28 +155,4 @@ func SaveProjectConfig(runCommand string, language string) error {
 		return v.WriteConfig()
 	}
 	return nil
-}
-
-// TODO: Add other supported languages (Zig, Clojure, Ruby...)
-// DetectLanguage detects programming language from run command
-func DetectLanguage(runCommand string) string {
-	// Simple detection based on command prefix
-	switch {
-	case len(runCommand) >= 2 && runCommand[:2] == "go":
-		return "GO"
-	case len(runCommand) >= 6 && runCommand[:6] == "python":
-		return "PYTHON"
-	case len(runCommand) >= 4 && runCommand[:4] == "java":
-		return "JAVA"
-	case len(runCommand) >= 4 && runCommand[:4] == "rust", len(runCommand) >= 5 && runCommand[:5] == "cargo":
-		return "RUST"
-	case len(runCommand) >= 4 && runCommand[:4] == "node":
-		return "JAVASCRIPT"
-	case len(runCommand) >= 3 && runCommand[:3] == "g++", len(runCommand) >= 5 && runCommand[:5] == "clang":
-		return "CPP"
-	case len(runCommand) >= 3 && runCommand[:3] == "gcc":
-		return "C"
-	default:
-		return "UNKNOWN"
-	}
 }

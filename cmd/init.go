@@ -3,61 +3,46 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/chibuka/95/internal/config"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/chibuka/95-cli/internal/config"
+	"github.com/chibuka/95-cli/ui/picker"
 	"github.com/spf13/cobra"
 )
 
+func doInit() error {
+	p := tea.NewProgram(picker.New())
+	result, err := p.Run()
+	if err != nil {
+		return fmt.Errorf("picker error: %w", err)
+	}
+
+	m, ok := result.(picker.Model)
+	if !ok {
+		return fmt.Errorf("unexpected model type")
+	}
+
+	chosen := m.Chosen()
+	if chosen == nil {
+		return nil // user quit picker — back to dashboard
+	}
+
+	if err := config.SaveProjectConfig(chosen.Command, m.Language()); err != nil {
+		return fmt.Errorf("failed to save config: %w", err)
+	}
+
+	fmt.Printf("\n  ✓ initialized — %s (%s)\n\n", chosen.Command, m.Language())
+	return nil
+}
+
 var initCmd = &cobra.Command{
-	Use:   "init [--cmd <command>] or init <command>",
+	Use:   "init",
 	Short: "Initialize project with run command",
-	Long: `Initialize your project by specifying how to run your code.
-
-The run command is used to execute your program during tests.
-
-Examples:
-  95 init --cmd "python main.py"
-  95 init --cmd "node index.js"
-  95 init --cmd "go run main.go"
-  95 init --cmd "./my-binary"
-
-  # Shorthand (positional argument):
-  95 init "python main.py"`,
+	Long:  `Initialize your project by selecting how to run your Go code.`,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		var runCommand string
-
-		// Support both --cmd flag and positional argument
-		if len(args) > 0 {
-			runCommand = args[0]
-		} else {
-			var err error
-			runCommand, err = cmd.Flags().GetString("cmd")
-			if err != nil {
-				return fmt.Errorf("failed to get cmd flag: %w", err)
-			}
-		}
-
-		if runCommand == "" {
-			return fmt.Errorf("run command cannot be empty. Use: 95 init --cmd \"<command>\" or 95 init \"<command>\"")
-		}
-
-		// Detect language from run command
-		language := config.DetectLanguage(runCommand)
-
-		// Save project config
-		err := config.SaveProjectConfig(runCommand, language)
-		if err != nil {
-			return fmt.Errorf("failed to save project config: %w", err)
-		}
-
-		fmt.Printf("✓ Project initialized!\n")
-		fmt.Printf("  Run command: %s\n", runCommand)
-		fmt.Printf("  Language: %s\n", language)
-		fmt.Println("\nTip: Make sure your command includes the entry point file in case you runCommand needs it (e.g., 'python main.py')")
-		return nil
+		return doInit()
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(initCmd)
-	initCmd.Flags().String("cmd", "", "Command to run your program (e.g., 'python main.py')")
 }
