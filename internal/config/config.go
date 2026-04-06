@@ -156,4 +156,3 @@ func SaveProjectConfig(runCommand string, language string) error {
 	}
 	return nil
 }
-

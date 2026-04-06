@@ -19,4 +19,3 @@ var artStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("242"))
 func Render() string {
 	return artStyle.Render(art)
 }
-
