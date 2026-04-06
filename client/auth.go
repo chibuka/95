@@ -3,27 +3,17 @@ package client
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
-	"strings"
+	"time"
 
-	"github.com/charmbracelet/lipgloss"
 	"github.com/chibuka/95-cli/internal/config"
+	"github.com/google/uuid"
 	"github.com/pkg/browser"
 )
-
-var (
-	authDim    = lipgloss.NewStyle().Foreground(lipgloss.Color("244"))
-	authGreen  = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
-	authOrange = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
-)
-
-type AuthRequest struct {
-	Otp string `json:"otp"`
-}
 
 type AuthResponse struct {
 	AccessToken  string `json:"access_token"`
@@ -32,42 +22,20 @@ type AuthResponse struct {
 	Login        string `json:"login"`
 }
 
+var ErrTimeout = errors.New("authentication timed out — please try again")
+
 func Login() error {
-	codeChan := make(chan string)
-
-	// Get API URL from environment or use default
 	apiURL := getAPIURL()
+	sessionID := uuid.New().String()
 
-	// Start local server
-	fmt.Println(authDim.Render("  ● Starting server on port 9417..."))
-	err := startLocalServer(codeChan, apiURL)
+	fmt.Println("Opening browser for GitHub login...")
+	err := browser.OpenURL(fmt.Sprintf("%s/oauth2/cli-login?session=%s", apiURL, sessionID))
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to open browser: %w", err)
 	}
 
-	// Open the browser to CLI login endpoint
-	fmt.Println(authDim.Render("  ● Opening browser for GitHub OAuth at " + apiURL))
-	err = browser.OpenURL(fmt.Sprintf("%s/oauth2/cli-login", apiURL))
-	if err != nil {
-		return err
-	}
-
-	// Race: Web POST vs Manual paste
-	go func() {
-		fmt.Println(authDim.Render("\n  If browser doesn't auto-submit, paste your code here:"))
-		var code string
-		_, err := fmt.Scanln(&code)
-		if err != nil {
-			return
-		}
-		codeChan <- code
-	}()
-
-	fmt.Println(authDim.Render("  ● Waiting for OTP code..."))
-	otp := <-codeChan
-	fmt.Println(authGreen.Render("  ✓ OTP received!"))
-
-	auth, err := LoginWithCode(otp, apiURL)
+	fmt.Println("Waiting for authentication...")
+	auth, err := pollForTokens(sessionID, apiURL)
 	if err != nil {
 		return err
 	}
@@ -79,12 +47,44 @@ func Login() error {
 		UserId:       auth.UserId,
 		Username:     auth.Login,
 	}
+	return cfg.Save()
+}
 
-	err = cfg.Save()
+func pollForTokens(sessionID, apiURL string) (*AuthResponse, error) {
+	pollURL := fmt.Sprintf("%s/api/auth/cli/poll", apiURL)
+	reqBody, err := json.Marshal(map[string]string{"session_id": sessionID})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	deadline := time.Now().Add(5 * time.Minute)
+	for time.Now().Before(deadline) {
+		res, err := http.Post(pollURL, "application/json", bytes.NewReader(reqBody))
+		if err != nil {
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		if res.StatusCode == http.StatusAccepted {
+			res.Body.Close()
+			time.Sleep(2 * time.Second)
+			continue
+		}
+
+		defer res.Body.Close()
+		if res.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(res.Body)
+			return nil, fmt.Errorf("poll failed: %d - %s", res.StatusCode, body)
+		}
+
+		var auth AuthResponse
+		if err := json.NewDecoder(res.Body).Decode(&auth); err != nil {
+			return nil, fmt.Errorf("failed to decode response: %w", err)
+		}
+		return &auth, nil
+	}
+
+	return nil, ErrTimeout
 }
 
 func getAPIURL() string {
@@ -92,90 +92,6 @@ func getAPIURL() string {
 		return config.LocalAPIURL
 	}
 	return config.DefaultAPIURL
-}
-
-func startLocalServer(codeChan chan string, apiURL string) error {
-	server := http.Server{
-		Addr: "localhost:9417",
-	}
-
-	http.HandleFunc("/submit", handleSubmit(codeChan, apiURL))
-
-	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Printf("Local server error: %v", err)
-		}
-	}()
-
-	return nil
-}
-
-func handleSubmit(codeChan chan string, apiURL string) http.HandlerFunc {
-	return func(res http.ResponseWriter, req *http.Request) {
-		if req.Method != "OPTIONS" {
-			fmt.Println(authDim.Render("  ● Callback received"))
-		}
-
-		res.Header().Set("Access-Control-Allow-Origin", apiURL)
-		res.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-		res.Header().Set("Access-Control-Allow-Headers", "Content-Type")
-
-		if req.Method == "OPTIONS" {
-			res.WriteHeader(http.StatusOK)
-			return
-		}
-
-		body, err := io.ReadAll(req.Body)
-		if err != nil {
-			fmt.Println(authOrange.Render("  ✗ Error reading request body: " + err.Error()))
-			http.Error(res, "Couldn't read request body", http.StatusInternalServerError)
-			return
-		}
-
-		otp := strings.TrimSpace(string(body))
-		if otp == "" {
-			fmt.Println(authOrange.Render("  ✗ Empty OTP code"))
-			http.Error(res, "Empty OTP code", http.StatusBadRequest)
-			return
-		}
-
-		fmt.Println(authDim.Render("  ● Processing..."))
-		codeChan <- otp
-
-		_, _ = res.Write([]byte("Success! You can close this window."))
-	}
-}
-
-func LoginWithCode(otp string, apiURL string) (*AuthResponse, error) {
-	reqBody := AuthRequest{Otp: otp}
-	jsonData, err := json.Marshal(reqBody)
-	if err != nil {
-		return nil, err
-	}
-
-	loginURL := fmt.Sprintf("%s/api/auth/otp/login", apiURL)
-	res, err := http.Post(loginURL, "application/json", bytes.NewReader(jsonData))
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = res.Body.Close() }()
-
-	if res.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(res.Body)
-		return nil, fmt.Errorf("login failed: %d - %s", res.StatusCode, body)
-	}
-
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	var authResponse AuthResponse
-	if err := json.Unmarshal(body, &authResponse); err != nil {
-		return nil, err
-	}
-
-	return &authResponse, nil
 }
 
 func RefreshToken(refreshToken string, apiURL string) (*AuthResponse, error) {
@@ -209,27 +125,22 @@ func RefreshToken(refreshToken string, apiURL string) (*AuthResponse, error) {
 	return &authResponse, nil
 }
 
-func Logout(accessToken string, apiURL string) error {
-	logoutURL := fmt.Sprintf("%s/api/auth/logout", apiURL)
-	req, err := http.NewRequest("POST", logoutURL, nil)
+func Logout(refreshToken string, apiURL string) error {
+	body, err := json.Marshal(map[string]string{"refresh_token": refreshToken})
 	if err != nil {
-		return fmt.Errorf("failed to create logout request: %w", err)
+		return fmt.Errorf("failed to marshal logout request: %w", err)
 	}
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", accessToken))
 
-	res, err := http.DefaultClient.Do(req)
+	logoutURL := fmt.Sprintf("%s/api/auth/logout", apiURL)
+	res, err := http.Post(logoutURL, "application/json", bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("failed to call logout endpoint: %w", err)
 	}
 	defer res.Body.Close()
 
-	body, err := io.ReadAll(res.Body)
-	if err != nil {
-		return fmt.Errorf("failed to read response body: %w", err)
-	}
-
-	if res.StatusCode != 200 && res.StatusCode != 204 {
-		return fmt.Errorf("logout failed: %d - %s", res.StatusCode, string(body))
+	if res.StatusCode != http.StatusOK {
+		respBody, _ := io.ReadAll(res.Body)
+		return fmt.Errorf("logout failed: %d - %s", res.StatusCode, string(respBody))
 	}
 
 	return nil

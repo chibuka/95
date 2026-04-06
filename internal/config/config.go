@@ -157,39 +157,3 @@ func SaveProjectConfig(runCommand string, language string) error {
 	return nil
 }
 
-// DetectLanguage detects programming language from run command
-func DetectLanguage(runCommand string) string {
-	// Simple detection based on command prefix
-	switch {
-	case len(runCommand) >= 2 && runCommand[:2] == "go":
-		return "go"
-	case len(runCommand) >= 6 && runCommand[:6] == "python":
-		return "python"
-	case len(runCommand) >= 2 && runCommand[:2] == "ts", len(runCommand) >= 3 && runCommand[:3] == "deno":
-		return "typescript"
-	case len(runCommand) >= 4 && runCommand[:4] == "java":
-		return "java"
-	case len(runCommand) >= 6 && runCommand[:6] == "kotlin":
-		return "kotlin"
-	case len(runCommand) >= 4 && runCommand[:4] == "rust", len(runCommand) >= 5 && runCommand[:5] == "cargo":
-		return "rust"
-	case len(runCommand) >= 4 && runCommand[:4] == "node":
-		return "javascript"
-	case len(runCommand) >= 3 && runCommand[:3] == "g++", len(runCommand) >= 5 && runCommand[:5] == "clang":
-		return "cpp"
-	case len(runCommand) >= 3 && runCommand[:3] == "gcc":
-		return "c"
-	case len(runCommand) >= 4 && runCommand[:4] == "ruby":
-		return "ruby"
-	case len(runCommand) >= 4 && runCommand[:4] == "elixir", len(runCommand) >= 3 && runCommand[:3] == "mix":
-		return "elixir"
-	case len(runCommand) >= 7 && runCommand[:7] == "haskell", len(runCommand) >= 3 && runCommand[:3] == "ghc", len(runCommand) >= 5 && runCommand[:5] == "stack", len(runCommand) >= 6 && runCommand[:6] == "cabal":
-		return "haskell"
-	case len(runCommand) >= 3 && runCommand[:3] == "zig":
-		return "zig"
-	case len(runCommand) >= 5 && runCommand[:5] == "swift":
-		return "swift"
-	default:
-		return "unknown"
-	}
-}

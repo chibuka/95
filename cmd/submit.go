@@ -20,16 +20,20 @@ import (
 )
 
 var (
-	passStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
-	failStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
-	dimStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	queueStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
+	passStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
+	failStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
+	dimStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 )
 
 type streamEvent struct {
 	StageNumber int    `json:"stage_number"`
 	Passed      bool   `json:"passed"`
 	Logs        string `json:"logs"`
+	Type        string `json:"type"`
 	Done        bool   `json:"done"`
+	Pending     bool   `json:"pending"`
+	Recorded    *bool  `json:"recorded,omitempty"` // nil for test streams, true/false for submit
 }
 
 func submitToServer(stageUuid string) error {
@@ -113,6 +117,7 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 
 	fmt.Println()
 	allPassed := true
+	recorded := true
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 1024*1024), 1024*1024) // 1 MB buffer for large log payloads
 	for scanner.Scan() {
@@ -126,7 +131,18 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 		if err := json.Unmarshal([]byte(payload), &event); err != nil {
 			continue
 		}
+		if event.Type == "queued" {
+			fmt.Println(queueStyle.Render("~ queued, waiting for a slot..."))
+			continue
+		}
+		if event.Type == "running" {
+			fmt.Println(queueStyle.Render("~ running your code..."))
+			continue
+		}
 		if event.Done {
+			if event.Recorded != nil && !*event.Recorded {
+				recorded = false
+			}
 			break
 		}
 
@@ -142,6 +158,10 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 	fmt.Println()
 	if allPassed {
 		fmt.Println(passStyle.Render("✓ All stages passed!"))
+		if !recorded {
+			fmt.Println()
+			fmt.Println(failStyle.Render("⚠ Warning: progress could not be saved. Please try submitting again."))
+		}
 		fmt.Println()
 		fmt.Println(dimStyle.Render(successHint))
 	} else {

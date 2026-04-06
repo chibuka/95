@@ -24,14 +24,14 @@ func doLogout() error {
 		return fmt.Errorf("could not load config: %w", err)
 	}
 
-	if cfg.AccessToken == "" {
+	if cfg.RefreshToken == "" {
 		fmt.Println("  " + dim.Render("● Already logged out"))
 		fmt.Println()
 		return nil
 	}
 
 	apiURL := cfg.GetAPIURL()
-	if err := client.Logout(cfg.AccessToken, apiURL); err != nil {
+	if err := client.Logout(cfg.RefreshToken, apiURL); err != nil {
 		fmt.Println("  " + dim.Render("● Could not notify server — clearing local credentials..."))
 	}
 
