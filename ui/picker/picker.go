@@ -62,7 +62,6 @@ var languages = []language{
 		name: "typescript", display: "TypeScript",
 		options: []Option{
 			{"ts-node main.ts", "ts-node main.ts", "run with ts-node"},
-			{"deno run main.ts", "deno run main.ts", "run with deno"},
 			{"npx ts-node main.ts", "npx ts-node main.ts", "run with npx ts-node"},
 		},
 	},
@@ -159,7 +158,20 @@ type Model struct {
 }
 
 // New returns a fresh picker starting at language selection.
-func New() Model {
+// If enabled is non-nil, only languages whose name appears in the map are shown.
+func New(enabled map[string]string) Model {
+	if enabled != nil {
+		var filtered []language
+		for _, lang := range languages {
+			if ver, ok := enabled[lang.name]; ok {
+				lang.display = fmt.Sprintf("%s (v%s)", lang.display, ver)
+				filtered = append(filtered, lang)
+			}
+		}
+		if len(filtered) > 0 {
+			languages = filtered
+		}
+	}
 	return Model{}
 }
 

@@ -4,13 +4,15 @@ import (
 	"fmt"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/chibuka/95-cli/client"
 	"github.com/chibuka/95-cli/internal/config"
 	"github.com/chibuka/95-cli/ui/picker"
 	"github.com/spf13/cobra"
 )
 
 func doInit() error {
-	p := tea.NewProgram(picker.New())
+	runtimes, _ := client.FetchRuntimes()
+	p := tea.NewProgram(picker.New(runtimes))
 	result, err := p.Run()
 	if err != nil {
 		return fmt.Errorf("picker error: %w", err)

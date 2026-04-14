@@ -174,9 +174,8 @@ func (m Model) View() string {
 	b.WriteString("\n")
 	b.WriteString(banner.Render())
 	b.WriteString("\n\n")
-	b.WriteString(fmt.Sprintf("  %s                              %s\n",
-		mutedStyle.Render("95™"),
-		mutedStyle.Render("v"+banner.Version)))
+	b.WriteString(fmt.Sprintf("  %s\n",
+		mutedStyle.Render("95™")))
 	b.WriteString("\n")
 	b.WriteString(mutedStyle.Render("  " + m.dir))
 	b.WriteString("\n\n")
