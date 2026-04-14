@@ -10,9 +10,7 @@ import (
 func doRun(uuid string) error {
 	fmt.Println(banner.Render())
 	fmt.Println()
-	fmt.Printf("  %s                              %s\n",
-		mutedStyle.Render("95™"),
-		mutedStyle.Render("v"+banner.Version))
+	fmt.Printf("  %s\n", mutedStyle.Render("95™"))
 	fmt.Println()
 	return submitToServer(uuid)
 }

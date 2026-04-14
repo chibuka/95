@@ -2,8 +2,6 @@ package banner
 
 import "github.com/charmbracelet/lipgloss"
 
-const Version = "0.1.0"
-
 const art = `
 ________   ___  ________   _______   ________ ___  ___      ___ _______
 |\   ___  \|\  \|\   ___  \|\  ___ \ |\  _____\\  \|\  \    /  /|\  ___ \
