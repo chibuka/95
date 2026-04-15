@@ -65,7 +65,7 @@ jobs:
           GOARCH: ${{ matrix.arch }}
           CGO_ENABLED: 0
         run: |
-          go build -ldflags="-s -w" -o ${{ matrix.binary_name }} .
+          go build -ldflags="-s -w -X github.com/chibuka/95-cli/cmd.Version=${{ github.ref_name }}" -o ${{ matrix.binary_name }} .
 
       - name: Prepare artifact (Unix)
         if: matrix.os != 'windows'
