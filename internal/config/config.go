@@ -34,8 +34,13 @@ func (cfg *Config) GetAPIURL() string {
 }
 
 type ProjectConfig struct {
-	RunCommand string `json:"runCommand"`
-	Language   string `json:"language"`
+	// BuildCommand is empty for interpreted languages (Python, JS, Ruby, ...).
+	// When non-empty, the server runs it inside the submission dir before exec'ing
+	// RunCommand, so compiled languages (Go, C, C++, Rust) produce a binary the
+	// run step can invoke regardless of the tester's current working directory.
+	BuildCommand string `json:"buildCommand,omitempty"`
+	RunCommand   string `json:"runCommand"`
+	Language     string `json:"language"`
 }
 
 func Init() {
@@ -135,8 +140,9 @@ func LoadProjectConfig() (*ProjectConfig, error) {
 	return &cfg, nil
 }
 
-// SaveProjectConfig writes runCommand and language to config.json in current directory
-func SaveProjectConfig(runCommand string, language string) error {
+// SaveProjectConfig writes buildCommand, runCommand and language to config.json
+// in the current directory. buildCommand may be empty for interpreted languages.
+func SaveProjectConfig(buildCommand, runCommand, language string) error {
 	currDir, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get current directory: %w", err)
@@ -146,6 +152,7 @@ func SaveProjectConfig(runCommand string, language string) error {
 	v.AddConfigPath(currDir)
 	v.SetConfigName("config")
 	v.SetConfigType("json")
+	v.Set("buildCommand", buildCommand)
 	v.Set("runCommand", runCommand)
 	v.Set("language", language)
 

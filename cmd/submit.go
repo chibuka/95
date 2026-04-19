@@ -59,6 +59,13 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 	if projectCfg.RunCommand == "" {
 		return fmt.Errorf("no run command found — run '95 init' first")
 	}
+	// Configs written before the build/run split have no buildCommand, which is
+	// harmless for interpreted languages but means compiled projects would ship
+	// their source code to a server that expects a pre-built binary. Nudge them
+	// to re-init rather than silently run something that will never produce output.
+	if projectCfg.BuildCommand == "" && isCompiledLang(projectCfg.Language) {
+		return fmt.Errorf("project config is outdated (no build step for %s) — run '95 init' to upgrade", projectCfg.Language)
+	}
 
 	globalCfg, err := config.Load()
 	if err != nil {
@@ -77,7 +84,7 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 	apiURL := globalCfg.GetAPIURL()
 	endpoint := apiURL + endpointPath
 
-	resp, err := postSubmission(endpoint, globalCfg.AccessToken, archive, projectCfg.RunCommand, projectCfg.Language)
+	resp, err := postSubmission(endpoint, globalCfg.AccessToken, archive, projectCfg.BuildCommand, projectCfg.RunCommand, projectCfg.Language)
 	if err != nil {
 		return fmt.Errorf("%s failed: %w", opName, err)
 	}
@@ -96,7 +103,7 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 		}
 		fmt.Println("✓ Token refreshed successfully!")
 
-		resp, err = postSubmission(endpoint, globalCfg.AccessToken, archive, projectCfg.RunCommand, projectCfg.Language)
+		resp, err = postSubmission(endpoint, globalCfg.AccessToken, archive, projectCfg.BuildCommand, projectCfg.RunCommand, projectCfg.Language)
 		if err != nil {
 			return fmt.Errorf("%s failed: %w", opName, err)
 		}
@@ -190,10 +197,15 @@ func printStageResult(event streamEvent) {
 	}
 }
 
-func postSubmission(endpoint, token string, archive []byte, runCmd, language string) (*http.Response, error) {
+func postSubmission(endpoint, token string, archive []byte, buildCmd, runCmd, language string) (*http.Response, error) {
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 
+	// Empty buildCmd is valid (interpreted languages) — the server interprets
+	// "" as "no build step, exec runCmd directly".
+	if err := mw.WriteField("build_command", buildCmd); err != nil {
+		return nil, err
+	}
 	if err := mw.WriteField("run_command", runCmd); err != nil {
 		return nil, err
 	}
@@ -219,6 +231,16 @@ func postSubmission(endpoint, token string, archive []byte, runCmd, language str
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	return http.DefaultClient.Do(req)
+}
+
+// isCompiledLang marks languages whose presets always ship with a build step.
+// Kept here (not in the picker) so the check is local to where we enforce it.
+func isCompiledLang(lang string) bool {
+	switch lang {
+	case "go", "c", "cpp", "rust", "haskell", "zig", "swift":
+		return true
+	}
+	return false
 }
 
 func createArchive(dir string) ([]byte, error) {
