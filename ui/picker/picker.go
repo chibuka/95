@@ -40,8 +40,9 @@ var languages = []language{
 	{
 		name: "rust", display: "Rust",
 		options: []Option{
-			{"cargo run", "cargo run", "run with cargo"},
-			{"rustc main.rs && ./main", "rustc main.rs && ./main", "compile, then run"},
+			// Command is stored for local reference; the runner always uses a
+			// canonical Cargo release build and run on the server.
+			{"Cargo project", "cargo run", "Cargo.toml + src/main.rs; platform runs release build & run"},
 		},
 	},
 	{
@@ -290,7 +291,7 @@ func (m Model) View() string {
 
 		b.WriteString("\n")
 		b.WriteString("  " + divider + "\n")
-		b.WriteString(infoStyle.Render("  The server uses this same command to test your solution."))
+		b.WriteString(infoStyle.Render("  Saved to project config; the server may use language-specific build & run rules."))
 		b.WriteString("\n")
 		b.WriteString(hintStyle.Render("  ↑↓ navigate   enter select   esc back   q quit"))
 	}

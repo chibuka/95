@@ -9,6 +9,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/chibuka/95-cli/internal/config"
+	"github.com/chibuka/95-cli/internal/updater"
 	"github.com/chibuka/95-cli/ui/dashboard"
 	"github.com/spf13/cobra"
 )
@@ -18,14 +19,29 @@ var rootCmd = &cobra.Command{
 	Short:         "Practice coding challenges and level up your skills",
 	SilenceUsage:  true,
 	SilenceErrors: true,
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		if cmd.Name() == "update" {
+			return
+		}
+		// Root interactive mode clears the screen; show the notice inside the dashboard instead.
+		if cmd.Parent() == nil {
+			return
+		}
+		if msg := updater.MaybeUpdateNotice(Version); msg != "" {
+			warn := lipgloss.NewStyle().Foreground(lipgloss.Color("3"))
+			fmt.Fprintln(os.Stderr, warn.Render("  ! "+msg))
+		}
+	},
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return runInteractive("")
+		return runInteractive("", updater.MaybeUpdateNotice(Version))
 	},
 }
 
 // runInteractive runs the dashboard loop. prevErrMsg, if non-empty, causes
 // the dashboard to open in stateResult so the user sees the error first.
-func runInteractive(prevErrMsg string) error {
+// updateNotice is shown once on the first dashboard paint when non-empty.
+func runInteractive(prevErrMsg, updateNotice string) error {
+	first := true
 	for {
 		cfg, _ := config.Load()
 		username := "not authenticated"
@@ -40,7 +56,12 @@ func runInteractive(prevErrMsg string) error {
 
 		fmt.Print("\033[2J\033[H")
 
-		p := tea.NewProgram(dashboard.New(username, dir, prevErrMsg))
+		notice := ""
+		if first {
+			notice = updateNotice
+			first = false
+		}
+		p := tea.NewProgram(dashboard.New(username, dir, prevErrMsg, notice))
 		result, err := p.Run()
 		if err != nil {
 			return err
