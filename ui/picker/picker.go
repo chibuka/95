@@ -79,19 +79,17 @@ var languages = []language{
 	{
 		name: "c", display: "C",
 		options: []Option{
-			{"gcc main.c", "gcc main.c -o /tmp/app", "/tmp/app", "compile main.c with gcc"},
-			// `make` assumes your Makefile produces ./app — the convention is documented
-			// here so users can't miss it. $_dir/app is the absolute location after build.
-			// MakefileDocsURL below gets printed alongside this option in the picker view
-			// and in `95 init` output so users can self-serve the setup rules.
-			{"make", "make", `"$_dir/app"`, "run your Makefile (must produce ./app)"},
+			{"make && ./app", "make && ./app", "build with make, then run ./app"},
+			{"gcc main.c -o app && ./app", "gcc main.c -o app && ./app", "compile with gcc, then run"},
+			{"clang main.c -o app && ./app", "clang main.c -o app && ./app", "compile with clang, then run"},
 		},
 	},
 	{
 		name: "cpp", display: "C++",
 		options: []Option{
-			{"g++ main.cpp", "g++ main.cpp -o /tmp/app", "/tmp/app", "compile main.cpp with g++"},
-			{"make", "make", `"$_dir/app"`, "run your Makefile (must produce ./app)"},
+			{"make && ./app", "make && ./app", "build with make, then run ./app"},
+			{"g++ main.cpp -o app && ./app", "g++ main.cpp -o app && ./app", "compile with g++, then run"},
+			{"clang++ main.cpp -o app && ./app", "clang++ main.cpp -o app && ./app", "compile with clang++, then run"},
 		},
 	},
 	{
@@ -183,9 +181,7 @@ func New(enabled map[string]string) Model {
 				filtered = append(filtered, lang)
 			}
 		}
-		if len(filtered) > 0 {
-			languages = filtered
-		}
+		languages = filtered
 	}
 	return Model{}
 }

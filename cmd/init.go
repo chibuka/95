@@ -11,7 +11,13 @@ import (
 )
 
 func doInit() error {
-	runtimes, _ := client.FetchRuntimes()
+	runtimes, err := client.FetchRuntimes()
+	if err != nil {
+		return fmt.Errorf("failed to fetch supported runtimes from backend: %w", err)
+	}
+	if len(runtimes) == 0 {
+		return fmt.Errorf("backend returned no supported runtimes")
+	}
 	p := tea.NewProgram(picker.New(runtimes))
 	result, err := p.Run()
 	if err != nil {
