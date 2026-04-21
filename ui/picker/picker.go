@@ -68,6 +68,7 @@ var languages = []language{
 	{
 		name: "c", display: "C",
 		options: []Option{
+			{"make && ./app", "make && ./app", "build with make, then run ./app"},
 			{"gcc main.c -o app && ./app", "gcc main.c -o app && ./app", "compile with gcc, then run"},
 			{"clang main.c -o app && ./app", "clang main.c -o app && ./app", "compile with clang, then run"},
 		},
@@ -75,6 +76,7 @@ var languages = []language{
 	{
 		name: "cpp", display: "C++",
 		options: []Option{
+			{"make && ./app", "make && ./app", "build with make, then run ./app"},
 			{"g++ main.cpp -o app && ./app", "g++ main.cpp -o app && ./app", "compile with g++, then run"},
 			{"clang++ main.cpp -o app && ./app", "clang++ main.cpp -o app && ./app", "compile with clang++, then run"},
 		},
@@ -168,9 +170,7 @@ func New(enabled map[string]string) Model {
 				filtered = append(filtered, lang)
 			}
 		}
-		if len(filtered) > 0 {
-			languages = filtered
-		}
+		languages = filtered
 	}
 	return Model{}
 }
