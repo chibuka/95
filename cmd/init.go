@@ -11,7 +11,13 @@ import (
 )
 
 func doInit() error {
-	runtimes, _ := client.FetchRuntimes()
+	runtimes, err := client.FetchRuntimes()
+	if err != nil {
+		return fmt.Errorf("failed to fetch supported runtimes from backend: %w", err)
+	}
+	if len(runtimes) == 0 {
+		return fmt.Errorf("backend returned no supported runtimes")
+	}
 	p := tea.NewProgram(picker.New(runtimes))
 	result, err := p.Run()
 	if err != nil {
@@ -28,24 +34,11 @@ func doInit() error {
 		return nil // user quit picker — back to dashboard
 	}
 
-	if err := config.SaveProjectConfig(chosen.Build, chosen.Run, m.Language()); err != nil {
+	if err := config.SaveProjectConfig("", chosen.Command, m.Language()); err != nil {
 		return fmt.Errorf("failed to save config: %w", err)
 	}
 
-	// Show the build step too when there is one, so the user sees exactly what
-	// the server will execute — easier to self-diagnose "why did my submission fail".
-	if chosen.Build != "" {
-		fmt.Printf("\n  ✓ initialized — %s (%s)\n       build: %s\n", chosen.Run, m.Language(), chosen.Build)
-	} else {
-		fmt.Printf("\n  ✓ initialized — %s (%s)\n", chosen.Run, m.Language())
-	}
-	// `make` requires a specific Makefile shape (./app output, tabs, no network
-	// at build time). Point users at the docs the moment they commit so they
-	// don't learn the rules via a failed submission.
-	if chosen.IsMakePreset() {
-		fmt.Printf("       Makefile setup guide: %s\n", picker.MakefileDocsURL)
-	}
-	fmt.Println()
+	fmt.Printf("\n  ✓ initialized — %s (%s)\n\n", chosen.Command, m.Language())
 	return nil
 }
 

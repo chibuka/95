@@ -8,27 +8,10 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
-// Option represents a predefined build+run pair for a language.
-//
-// Why two fields instead of one shell string?
-// Some testers (git, http-server) change CWD before invoking your_program.sh.
-// The server runs Build inside the submission dir in a subshell, then exec's Run
-// from the tester's CWD. Splitting them lets compiled languages still find their
-// sources, and lets the run step stay writable to the tester's working directory
-// (needed for things like `git init` writing .git there).
-//
-// Conventions used in the presets below:
-//   - Compiled outputs go to /tmp/app (absolute path, always writable in our
-//     Alpine runner, cleared between submissions by Docker --rm).
-//   - Interpreted runs reference "$_dir/<file>" so they don't break when the
-//     tester chdirs. $_dir is defined in the your_program.sh header on the server.
-//   - `make` presets assume the user's Makefile emits ./app at CWD — this is
-//     documented in the Description. If the user needs something else, they
-//     need a custom command (not yet supported).
+// Option represents a predefined run command.
 type Option struct {
 	Label       string
-	Build       string
-	Run         string
+	Command     string
 	Description string
 }
 
@@ -42,87 +25,101 @@ var languages = []language{
 	{
 		name: "go", display: "Go",
 		options: []Option{
-			{"go run .", "go build -o /tmp/app .", "/tmp/app", "build current package, run binary"},
-			{"go run main.go", "go build -o /tmp/app main.go", "/tmp/app", "build main.go, run binary"},
+			{"go run .", "go run .", "run current package"},
+			{"go run main.go", "go run main.go", "explicit entry point"},
+			{"go build -o ./app && ./app", "go build -o ./app && ./app", "compile, then run"},
 		},
 	},
 	{
 		name: "python", display: "Python",
 		options: []Option{
-			{"python3 main.py", "", `python3 "$_dir/main.py"`, "run with python3"},
-			{"python main.py", "", `python "$_dir/main.py"`, "run with python"},
+			{"python3 main.py", "python3 main.py", "run with python3"},
+			{"python main.py", "python main.py", "run with python"},
 		},
 	},
 	{
 		name: "rust", display: "Rust",
 		options: []Option{
-			// --manifest-path keeps cargo rooted at the submission dir even after the
-			// tester chdirs; --release matches the cost model of other compiled presets.
-			{"cargo build --release", `cargo build --release --manifest-path "$_dir/Cargo.toml"`, `"$_dir/target/release/app"`, "cargo release build (crate must be named 'app')"},
-			{"rustc main.rs", `rustc "$_dir/main.rs" -o /tmp/app`, "/tmp/app", "single-file rustc build"},
+			{"cargo run", "cargo run", "run with cargo"},
+			{"rustc main.rs && ./main", "rustc main.rs && ./main", "compile, then run"},
+		},
+	},
+	{
+		name: "java", display: "Java",
+		options: []Option{
+			{"javac Main.java && java Main", "javac Main.java && java Main", "compile, then run"},
+			{"java Main.java", "java Main.java", "single-file source (Java 11+)"},
 		},
 	},
 	{
 		name: "javascript", display: "JavaScript",
 		options: []Option{
-			{"node index.js", "", `node "$_dir/index.js"`, "run with node"},
-			{"node main.js", "", `node "$_dir/main.js"`, "run with node"},
+			{"node index.js", "node index.js", "run with node"},
+			{"node main.js", "node main.js", "explicit entry point"},
 		},
 	},
 	{
 		name: "typescript", display: "TypeScript",
 		options: []Option{
-			{"ts-node main.ts", "", `ts-node "$_dir/main.ts"`, "run with ts-node"},
-			{"npx ts-node main.ts", "", `npx ts-node "$_dir/main.ts"`, "run with npx ts-node"},
+			{"ts-node main.ts", "ts-node main.ts", "run with ts-node"},
+			{"npx ts-node main.ts", "npx ts-node main.ts", "run with npx ts-node"},
 		},
 	},
 	{
 		name: "c", display: "C",
 		options: []Option{
-			{"gcc main.c", "gcc main.c -o /tmp/app", "/tmp/app", "compile main.c with gcc"},
-			// `make` assumes your Makefile produces ./app — the convention is documented
-			// here so users can't miss it. $_dir/app is the absolute location after build.
-			// MakefileDocsURL below gets printed alongside this option in the picker view
-			// and in `95 init` output so users can self-serve the setup rules.
-			{"make", "make", `"$_dir/app"`, "run your Makefile (must produce ./app)"},
+			{"make && ./app", "make && ./app", "build with make, then run ./app"},
+			{"gcc main.c -o app && ./app", "gcc main.c -o app && ./app", "compile with gcc, then run"},
+			{"clang main.c -o app && ./app", "clang main.c -o app && ./app", "compile with clang, then run"},
 		},
 	},
 	{
 		name: "cpp", display: "C++",
 		options: []Option{
-			{"g++ main.cpp", "g++ main.cpp -o /tmp/app", "/tmp/app", "compile main.cpp with g++"},
-			{"make", "make", `"$_dir/app"`, "run your Makefile (must produce ./app)"},
+			{"make && ./app", "make && ./app", "build with make, then run ./app"},
+			{"g++ main.cpp -o app && ./app", "g++ main.cpp -o app && ./app", "compile with g++, then run"},
+			{"clang++ main.cpp -o app && ./app", "clang++ main.cpp -o app && ./app", "compile with clang++, then run"},
 		},
 	},
 	{
 		name: "ruby", display: "Ruby",
 		options: []Option{
-			{"ruby main.rb", "", `ruby "$_dir/main.rb"`, "run with ruby"},
+			{"ruby main.rb", "ruby main.rb", "run with ruby"},
 		},
 	},
 	{
 		name: "elixir", display: "Elixir",
 		options: []Option{
-			{"elixir main.exs", "", `elixir "$_dir/main.exs"`, "run script with elixir"},
+			{"elixir main.exs", "elixir main.exs", "run script with elixir"},
+			{"mix run", "mix run", "run with mix"},
 		},
 	},
 	{
 		name: "haskell", display: "Haskell",
 		options: []Option{
-			{"runhaskell main.hs", "", `runhaskell "$_dir/main.hs"`, "interpret with runhaskell"},
-			{"ghc main.hs", `ghc "$_dir/main.hs" -o /tmp/app`, "/tmp/app", "compile with ghc"},
+			{"runhaskell main.hs", "runhaskell main.hs", "interpret with runhaskell"},
+			{"ghc main.hs -o app && ./app", "ghc main.hs -o app && ./app", "compile with ghc, then run"},
 		},
 	},
 	{
 		name: "zig", display: "Zig",
 		options: []Option{
-			{"zig build-exe", `zig build-exe "$_dir/main.zig" -O ReleaseSafe --cache-dir /tmp/zig-cache -femit-bin=/tmp/app`, "/tmp/app", "build single file, run binary"},
+			{"zig run main.zig", "zig run main.zig", "run with zig"},
+			{"zig build run", "zig build run", "build and run"},
+		},
+	},
+	{
+		name: "kotlin", display: "Kotlin",
+		options: []Option{
+			{"kotlinc main.kt -include-runtime -d app.jar && java -jar app.jar", "kotlinc main.kt -include-runtime -d app.jar && java -jar app.jar", "compile, then run"},
+			{"kotlin main.kt", "kotlin main.kt", "run as script"},
 		},
 	},
 	{
 		name: "swift", display: "Swift",
 		options: []Option{
-			{"swiftc main.swift", `swiftc "$_dir/main.swift" -o /tmp/app`, "/tmp/app", "compile main.swift, run binary"},
+			{"swift main.swift", "swift main.swift", "run with swift"},
+			{"swift run", "swift run", "run with swift package manager"},
 		},
 	},
 }
@@ -152,16 +149,6 @@ const (
 	stateCmd
 )
 
-// MakefileDocsURL is the deep-link anchor on the docs page that explains the
-// Makefile convention (must produce ./app, etc). Exported so cmd/init.go can
-// print it after a successful init as well, keeping the message consistent.
-const MakefileDocsURL = "https://95ninefive.dev/docs#make"
-
-// IsMakePreset is a cheap heuristic — the two make presets share the literal
-// build command "make", and no other preset does. Kept as a helper so callers
-// don't hardcode the string in multiple places.
-func (o Option) IsMakePreset() bool { return o.Build == "make" }
-
 // Model is the bubbletea picker model.
 type Model struct {
 	state      pickerState
@@ -183,9 +170,7 @@ func New(enabled map[string]string) Model {
 				filtered = append(filtered, lang)
 			}
 		}
-		if len(filtered) > 0 {
-			languages = filtered
-		}
+		languages = filtered
 	}
 	return Model{}
 }
@@ -307,13 +292,6 @@ func (m Model) View() string {
 		b.WriteString("  " + divider + "\n")
 		b.WriteString(infoStyle.Render("  The server uses this same command to test your solution."))
 		b.WriteString("\n")
-		// Makefile setup rules (must produce ./app, tabs not spaces, ...) trip
-		// users up often enough that it's worth surfacing the docs URL the moment
-		// the cursor lands on a make preset — not only after they hit enter.
-		if lang.options[m.cmdCursor].IsMakePreset() {
-			b.WriteString(infoStyle.Render("  Makefile setup guide: " + MakefileDocsURL))
-			b.WriteString("\n")
-		}
 		b.WriteString(hintStyle.Render("  ↑↓ navigate   enter select   esc back   q quit"))
 	}
 

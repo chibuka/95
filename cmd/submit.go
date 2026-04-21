@@ -32,8 +32,11 @@ type streamEvent struct {
 	Logs        string `json:"logs"`
 	Type        string `json:"type"`
 	Done        bool   `json:"done"`
+	Outcome     string `json:"outcome"`
+	Reason      string `json:"reason"`
 	Pending     bool   `json:"pending"`
-	Recorded    *bool  `json:"recorded,omitempty"` // nil for test streams, true/false for submit
+	// THIS IS SPECIFIC TO "SUBMIT" FOR DB PERSISTANCE REASONS
+	Recorded *bool `json:"recorded,omitempty"` // nil for test streams, true/false for submit
 }
 
 func submitToServer(stageUuid string) error {
@@ -58,13 +61,6 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 	}
 	if projectCfg.RunCommand == "" {
 		return fmt.Errorf("no run command found — run '95 init' first")
-	}
-	// Configs written before the build/run split have no buildCommand, which is
-	// harmless for interpreted languages but means compiled projects would ship
-	// their source code to a server that expects a pre-built binary. Nudge them
-	// to re-init rather than silently run something that will never produce output.
-	if projectCfg.BuildCommand == "" && isCompiledLang(projectCfg.Language) {
-		return fmt.Errorf("project config is outdated (no build step for %s) — run '95 init' to upgrade", projectCfg.Language)
 	}
 
 	globalCfg, err := config.Load()
@@ -150,6 +146,9 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 			if event.Recorded != nil && !*event.Recorded {
 				recorded = false
 			}
+			if event.Outcome == "error" && strings.TrimSpace(event.Reason) != "" {
+				fmt.Println(failStyle.Render("✗ Run failed: "+event.Reason))
+			}
 			break
 		}
 
@@ -201,8 +200,6 @@ func postSubmission(endpoint, token string, archive []byte, buildCmd, runCmd, la
 	var body bytes.Buffer
 	mw := multipart.NewWriter(&body)
 
-	// Empty buildCmd is valid (interpreted languages) — the server interprets
-	// "" as "no build step, exec runCmd directly".
 	if err := mw.WriteField("build_command", buildCmd); err != nil {
 		return nil, err
 	}
