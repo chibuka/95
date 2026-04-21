@@ -71,7 +71,6 @@ var languages = []language{
 		options: []Option{
 			{"make && ./app", "make && chmod +x app && ./app", "build with make, then run ./app"},
 			{"gcc main.c -o app && ./app", "gcc main.c -o app && ./app", "compile with gcc, then run"},
-			{"clang main.c -o app && ./app", "clang main.c -o app && ./app", "compile with clang, then run"},
 		},
 	},
 	{

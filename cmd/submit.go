@@ -146,6 +146,9 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 			if event.Recorded != nil && !*event.Recorded {
 				recorded = false
 			}
+			if event.Outcome != "success" {
+				allPassed = false
+			}
 			if event.Outcome == "error" && strings.TrimSpace(event.Reason) != "" {
 				fmt.Println(failStyle.Render("✗ Run failed: "+event.Reason))
 			}
