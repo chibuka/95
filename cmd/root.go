@@ -20,7 +20,7 @@ var rootCmd = &cobra.Command{
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		if cmd.Name() == "update" {
+		if cmd.Name() == "update" || cmd.Name() == "help" || cmd.Name() == "version" {
 			return
 		}
 		// Root interactive mode clears the screen; show the notice inside the dashboard instead.
