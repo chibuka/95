@@ -1,0 +1,34 @@
+name: Test
+
+on:
+  push:
+    paths-ignore:
+      - "**.md"
+      - "**.png"
+      - "**.ipynb"
+      - "**.xcf"
+      - "LICENSE"
+  pull_request:
+    paths-ignore:
+      - "**.md"
+      - "**.png"
+      - "**.ipynb"
+      - "**.xcf"
+      - "LICENSE"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go-version: ["1.22", "1.23"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go-version }}
+      - name: Test
+        run: |
+          go test -race ./...

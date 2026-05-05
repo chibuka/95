@@ -1,0 +1,22 @@
+name: Fuzz
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+jobs:
+  all:
+    strategy:
+        matrix:
+          package: [words, sentences, graphemes, phrases]
+          fuzzer: [FuzzValidShort, FuzzValidLong, FuzzInvalid]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Set up Go
+      uses: actions/setup-go@v5
+    - name: Check out code
+      uses: actions/checkout@v4
+    - name: ${{ matrix.package }}.${{ matrix.fuzzer }}
+      run: go test -fuzz=${{ matrix.fuzzer }} -fuzztime=60s github.com/clipperhouse/uax29/v2/${{ matrix.package }}

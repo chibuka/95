@@ -36,6 +36,7 @@ var allEntries = []entry{
 	{"update", "update CLI to latest release", false},
 	{"test", "run tests locally", true},
 	{"run", "submit your solution", true},
+	{"retry", "rerun the last test or run command", false},
 	{"logout", "sign out", false},
 }
 

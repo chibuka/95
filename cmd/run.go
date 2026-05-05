@@ -2,12 +2,18 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 
+	"github.com/chibuka/95-cli/internal/config"
 	"github.com/chibuka/95-cli/ui/banner"
 	"github.com/spf13/cobra"
 )
 
 func doRun(uuid string) error {
+	if err := config.SaveLastCommand("run", uuid); err != nil {
+		fmt.Fprintf(os.Stderr, "warning: failed to save retry command: %v\n", err)
+	}
+
 	fmt.Println(banner.Render())
 	fmt.Println()
 	fmt.Printf("  %s\n", mutedStyle.Render("95™"))

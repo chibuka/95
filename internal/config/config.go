@@ -41,6 +41,8 @@ type ProjectConfig struct {
 	BuildCommand string `json:"buildCommand,omitempty"`
 	RunCommand   string `json:"runCommand"`
 	Language     string `json:"language"`
+	LastAction   string `json:"lastAction,omitempty"` // "test" or "run"
+	LastUUID     string `json:"lastUuid,omitempty"`   // last floor UUID used with test/run
 }
 
 func Init() {
@@ -157,6 +159,29 @@ func SaveProjectConfig(buildCommand, runCommand, language string) error {
 	v.Set("language", language)
 
 	// safeWriteConfig does not seem to be safe!
+	err = v.SafeWriteConfig()
+	if err != nil {
+		return v.WriteConfig()
+	}
+	return nil
+}
+
+// SaveLastCommand stores the last test/run command and floor UUID.
+func SaveLastCommand(action, uuid string) error {
+	currDir, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	v := viper.New()
+	v.AddConfigPath(currDir)
+	v.SetConfigName("config")
+	v.SetConfigType("json")
+	_ = v.ReadInConfig()
+
+	v.Set("lastAction", action)
+	v.Set("lastUuid", uuid)
+
 	err = v.SafeWriteConfig()
 	if err != nil {
 		return v.WriteConfig()
