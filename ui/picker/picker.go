@@ -48,8 +48,7 @@ var languages = []language{
 	{
 		name: "java", display: "Java",
 		options: []Option{
-			{"javac Main.java && java Main", "javac Main.java && java Main", "compile, then run"},
-			{"java Main.java", "java Main.java", "single-file source (Java 11+)"},
+			{"javac *.java && java Main", "javac *.java && java Main", "all .java files in project root; entry class Main"},
 		},
 	},
 	{
