@@ -87,6 +87,8 @@ func runInteractive(prevErrMsg, updateNotice string) error {
 			runErr = doTest(action.UUID)
 		case "run":
 			runErr = doRun(action.UUID)
+		case "retry":
+			runErr = doRetry()
 		case "logout":
 			runErr = doLogout()
 		}
