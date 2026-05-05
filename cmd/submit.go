@@ -41,7 +41,7 @@ type streamEvent struct {
 
 func submitToServer(stageUuid string) error {
 	endpoint := fmt.Sprintf("/api/stages/%s/submit", stageUuid)
-	successHint := "→ Check your browser for live progress updates and stage completion!"
+	successHint := "→ Check your browser for live progress updates and floor completion!"
 	return sendAndStream(stageUuid, endpoint, "submission", successHint)
 }
 
@@ -110,9 +110,9 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 		body, _ := io.ReadAll(resp.Body)
 		switch resp.StatusCode {
 		case http.StatusNotFound:
-			return fmt.Errorf("stage '%s' not found\n\n→ Check the UUID and try again", stageUuid)
+			return fmt.Errorf("floor '%s' not found\n\n→ Check the UUID and try again", stageUuid)
 		case http.StatusForbidden:
-			return fmt.Errorf("access denied - you don't have permission to access this stage")
+			return fmt.Errorf("access denied - you don't have permission to access this floor")
 		default:
 			return fmt.Errorf("%s failed: HTTP %d - %s", opName, resp.StatusCode, strings.TrimSpace(string(body)))
 		}
@@ -166,7 +166,7 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 
 	fmt.Println()
 	if allPassed {
-		fmt.Println(passStyle.Render("✓ All stages passed!"))
+		fmt.Println(passStyle.Render("✓ All floors passed!"))
 		if !recorded {
 			fmt.Println()
 			fmt.Println(failStyle.Render("⚠ Warning: progress could not be saved. Please try submitting again."))
@@ -188,7 +188,7 @@ func printStageResult(event streamEvent) {
 	} else {
 		icon = failStyle.Render("✗")
 	}
-	fmt.Printf("Stage %02d  %s\n", event.StageNumber+1, icon)
+	fmt.Printf("Floor %d  %s\n", event.StageNumber, icon)
 	if !event.Passed && event.Logs != "" {
 		for _, line := range strings.Split(strings.TrimRight(event.Logs, "\n"), "\n") {
 			if line != "" {

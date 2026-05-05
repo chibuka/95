@@ -13,13 +13,13 @@ var mutedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
 func doTest(uuid string) error {
 	fmt.Println(banner.Render())
 	fmt.Println()
-	fmt.Printf("  %s\n",mutedStyle.Render("95™"))
+	fmt.Printf("  %s\n", mutedStyle.Render("95™"))
 	fmt.Println()
 	return testOnServer(uuid)
 }
 
 var testCmd = &cobra.Command{
-	Use:   "test <stage-uuid>",
+	Use:   "test <floor-uuid>",
 	Short: "Run tests locally without submitting",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {

@@ -33,6 +33,7 @@ type entry struct {
 
 var allEntries = []entry{
 	{"init", "initialize project run command", false},
+	{"update", "update CLI to latest release", false},
 	{"test", "run tests locally", true},
 	{"run", "submit your solution", true},
 	{"logout", "sign out", false},
@@ -62,14 +63,14 @@ var (
 
 // Model is the interactive dashboard bubbletea model.
 type Model struct {
-	state         dashState
-	cursor        int
-	input         textinput.Model
-	username      string
-	dir           string
-	action        *Action
-	resultMsg     string
-	updateNotice  string
+	state        dashState
+	cursor       int
+	input        textinput.Model
+	username     string
+	dir          string
+	action       *Action
+	resultMsg    string
+	updateNotice string
 }
 
 // New creates a fresh dashboard model with user context.
@@ -78,7 +79,7 @@ type Model struct {
 // updateNotice is a one-line hint when a newer CLI release exists (may be empty).
 func New(username, dir, lastErr, updateNotice string) Model {
 	ti := textinput.New()
-	ti.Placeholder = "paste stage UUID here..."
+	ti.Placeholder = "paste floor UUID here..."
 	ti.CharLimit = 64
 	ti.Width = 44
 	state := stateMenu

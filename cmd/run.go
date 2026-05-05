@@ -16,7 +16,7 @@ func doRun(uuid string) error {
 }
 
 var runCmd = &cobra.Command{
-	Use:   "run <stage-uuid>",
+	Use:   "run <floor-uuid>",
 	Short: "Submit your code to the server for testing and validation",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
