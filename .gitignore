@@ -1,3 +1,4 @@
 .zed
 *.md
 !README.md
+.gomodcache
