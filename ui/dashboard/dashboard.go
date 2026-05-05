@@ -47,6 +47,7 @@ var (
 	muted  = lipgloss.Color("240")
 	white  = lipgloss.Color("255")
 	dim    = lipgloss.Color("244")
+	gold   = lipgloss.Color("3")
 
 	activeName   = lipgloss.NewStyle().Foreground(orange).Bold(true)
 	inactiveName = lipgloss.NewStyle().Foreground(lipgloss.Color("245"))
@@ -56,23 +57,26 @@ var (
 	hintStyle    = lipgloss.NewStyle().Foreground(muted)
 	dividerStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("235"))
 	errStyle     = lipgloss.NewStyle().Foreground(orange)
+	noticeStyle  = lipgloss.NewStyle().Foreground(gold)
 )
 
 // Model is the interactive dashboard bubbletea model.
 type Model struct {
-	state     dashState
-	cursor    int
-	input     textinput.Model
-	username  string
-	dir       string
-	action    *Action
-	resultMsg string
+	state         dashState
+	cursor        int
+	input         textinput.Model
+	username      string
+	dir           string
+	action        *Action
+	resultMsg     string
+	updateNotice  string
 }
 
 // New creates a fresh dashboard model with user context.
 // lastErr is an optional error message from the previous command; if non-empty
 // the dashboard opens in stateResult so the user can read it and press esc to retry.
-func New(username, dir, lastErr string) Model {
+// updateNotice is a one-line hint when a newer CLI release exists (may be empty).
+func New(username, dir, lastErr, updateNotice string) Model {
 	ti := textinput.New()
 	ti.Placeholder = "paste stage UUID here..."
 	ti.CharLimit = 64
@@ -81,7 +85,7 @@ func New(username, dir, lastErr string) Model {
 	if lastErr != "" {
 		state = stateResult
 	}
-	return Model{username: username, dir: dir, input: ti, state: state, resultMsg: lastErr}
+	return Model{username: username, dir: dir, input: ti, state: state, resultMsg: lastErr, updateNotice: updateNotice}
 }
 
 func (m Model) visibleEntries() []entry {
@@ -176,6 +180,10 @@ func (m Model) View() string {
 	b.WriteString("\n\n")
 	b.WriteString(fmt.Sprintf("  %s\n",
 		mutedStyle.Render("95™")))
+	if m.updateNotice != "" {
+		b.WriteString("\n")
+		b.WriteString("  " + noticeStyle.Render("⬆  "+m.updateNotice))
+	}
 	b.WriteString("\n")
 	b.WriteString(mutedStyle.Render("  " + m.dir))
 	b.WriteString("\n\n")

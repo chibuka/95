@@ -21,6 +21,17 @@ A command-line tool for [95ninefive.dev](https://95ninefive.dev). Your code runs
 curl -fsSL https://raw.githubusercontent.com/chibuka/95-cli/main/install.sh | bash
 ```
 
+**Windows (PowerShell):**
+```powershell
+go install github.com/chibuka/95-cli/cmd/95@latest
+```
+
+Notes (Windows only):
+- macOS/Linux keep using the curl installer above, or `go build` from the repo root (output `95`).
+- `go install github.com/chibuka/95-cli/cmd/95@latest` is required on Windows so the binary is `95.exe` (installing the module root would produce `95-cli.exe`).
+- This requires Go (1.24+ recommended). Binaries land in `%USERPROFILE%\go\bin` by default.
+- Go does **not** always update your PATH automatically. If `95` is not found, add `%USERPROFILE%\go\bin` to your user PATH.
+
 ### Manual Installation
 
 1. Download the latest binary for your platform from [Releases](https://github.com/chibuka/95-cli/releases)
@@ -33,7 +44,7 @@ curl -fsSL https://raw.githubusercontent.com/chibuka/95-cli/main/install.sh | ba
 
 ### Build from Source
 
-Requirements: Go 1.23+
+Requirements: Go 1.24+
 
 ```bash
 git clone https://github.com/chibuka/95-cli.git

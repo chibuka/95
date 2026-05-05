@@ -8,6 +8,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
+	"runtime"
 	"time"
 
 	"github.com/chibuka/95-cli/internal/config"
@@ -27,11 +29,15 @@ var ErrTimeout = errors.New("authentication timed out — please try again")
 func Login() error {
 	apiURL := getAPIURL()
 	sessionID := uuid.New().String()
+	oauthURL := fmt.Sprintf("%s/oauth2/cli-login?session=%s", apiURL, sessionID)
 
 	fmt.Println("Opening browser for GitHub login...")
-	err := browser.OpenURL(fmt.Sprintf("%s/oauth2/cli-login?session=%s", apiURL, sessionID))
+	err := openOAuthURL(oauthURL)
 	if err != nil {
-		return fmt.Errorf("failed to open browser: %w", err)
+		fmt.Println("Could not open a browser automatically.")
+		fmt.Printf("Open this URL manually to continue login:\n%s\n", oauthURL)
+		fmt.Println("If you are in WSL, install wslu and try again:")
+		fmt.Println("sudo apt install -y wslu")
 	}
 
 	fmt.Println("Waiting for authentication...")
@@ -48,6 +54,32 @@ func Login() error {
 		Username:     auth.Login,
 	}
 	return cfg.Save()
+}
+
+func openOAuthURL(url string) error {
+	if err := browser.OpenURL(url); err == nil {
+		return nil
+	}
+
+	if runtime.GOOS != "linux" || os.Getenv("WSL_DISTRO_NAME") == "" {
+		return fmt.Errorf("failed to open browser automatically")
+	}
+
+	// WSL fallback path: try Windows host browser first, then wslview when available.
+	wslCommands := [][]string{
+		{"cmd.exe", "/C", "start", "", url},
+		{"powershell.exe", "-NoProfile", "-Command", "Start-Process", url},
+		{"wslview", url},
+	}
+
+	for _, parts := range wslCommands {
+		cmd := exec.Command(parts[0], parts[1:]...)
+		if err := cmd.Run(); err == nil {
+			return nil
+		}
+	}
+
+	return fmt.Errorf("failed to open browser automatically from WSL")
 }
 
 func pollForTokens(sessionID, apiURL string) (*AuthResponse, error) {
