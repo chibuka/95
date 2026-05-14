@@ -17,13 +17,11 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/chibuka/95-cli/client"
 	"github.com/chibuka/95-cli/internal/config"
+	"github.com/chibuka/95-cli/ui/logview"
 )
 
 var (
-	queueStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("11"))
-	passStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
-	failStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
-	dimStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+	failStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("208"))
 )
 
 type streamEvent struct {
@@ -71,7 +69,7 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 		return fmt.Errorf("not logged in. Run '95 login' first")
 	}
 
-	fmt.Println("Packaging submission...")
+	fmt.Println(logview.RenderProgress("Packaging submission"))
 	archive, err := createArchive(".")
 	if err != nil {
 		return fmt.Errorf("failed to create archive: %w", err)
@@ -135,11 +133,11 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 			continue
 		}
 		if event.Type == "queued" {
-			fmt.Println(queueStyle.Render("~ queued, waiting for a slot..."))
+			fmt.Println(logview.RenderProgress("Queued, waiting for a slot"))
 			continue
 		}
 		if event.Type == "running" {
-			fmt.Println(queueStyle.Render("~ running your code..."))
+			fmt.Println(logview.RenderProgress("Running your code"))
 			continue
 		}
 		if event.Done {
@@ -150,7 +148,7 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 				allPassed = false
 			}
 			if event.Outcome == "error" && strings.TrimSpace(event.Reason) != "" {
-				fmt.Println(failStyle.Render("✗ Run failed: "+event.Reason))
+				fmt.Println(failStyle.Render("✗ Run failed: " + event.Reason))
 			}
 			break
 		}
@@ -165,36 +163,19 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 	}
 
 	fmt.Println()
-	if allPassed {
-		fmt.Println(passStyle.Render("✓ All floors passed!"))
-		if !recorded {
-			fmt.Println()
-			fmt.Println(failStyle.Render("⚠ Warning: progress could not be saved. Please try submitting again."))
-		}
-		fmt.Println()
-		fmt.Println(dimStyle.Render(successHint))
-	} else {
-		fmt.Println(failStyle.Render("✗ Some stages failed."))
-	}
+	fmt.Println(logview.RenderSummary(allPassed, successHint, recorded))
 	fmt.Println()
 
 	return nil
 }
 
 func printStageResult(event streamEvent) {
-	var icon string
-	if event.Passed {
-		icon = passStyle.Render("✓")
-	} else {
-		icon = failStyle.Render("✗")
-	}
-	fmt.Printf("Floor %d  %s\n", event.StageNumber, icon)
-	if !event.Passed && event.Logs != "" {
-		for _, line := range strings.Split(strings.TrimRight(event.Logs, "\n"), "\n") {
-			if line != "" {
-				fmt.Println(dimStyle.Render("   " + line))
-			}
-		}
+	fmt.Println(logview.RenderFloor(logview.FloorResult{
+		Number: event.StageNumber,
+		Passed: event.Passed,
+		Logs:   event.Logs,
+	}))
+	if !event.Passed && strings.TrimSpace(event.Logs) != "" {
 		fmt.Println()
 	}
 }
@@ -231,16 +212,6 @@ func postSubmission(endpoint, token string, archive []byte, buildCmd, runCmd, la
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	return http.DefaultClient.Do(req)
-}
-
-// isCompiledLang marks languages whose presets always ship with a build step.
-// Kept here (not in the picker) so the check is local to where we enforce it.
-func isCompiledLang(lang string) bool {
-	switch lang {
-	case "go", "c", "cpp", "rust", "haskell", "zig", "swift":
-		return true
-	}
-	return false
 }
 
 func createArchive(dir string) ([]byte, error) {
