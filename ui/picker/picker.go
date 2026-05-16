@@ -6,13 +6,15 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/chibuka/95-cli/internal/presets"
 )
 
-// Option represents a predefined run command.
+// Option represents a predefined build/run command pair.
 type Option struct {
-	Label       string
-	Command     string
-	Description string
+	Label        string
+	BuildCommand string
+	RunCommand   string
+	Description  string
 }
 
 type language struct {
@@ -25,100 +27,97 @@ var languages = []language{
 	{
 		name: "go", display: "Go",
 		options: []Option{
-			{"go run .", "go run .", "run current package"},
-			{"go run main.go", "go run main.go", "explicit entry point"},
-			{"go build -o ./app && ./app", "go build -o ./app && ./app", "compile, then run"},
+			{"go run .", presets.GoBuildCurrentPackage, presets.GoRunBinary, "run current package"},
+			{"go run main.go", presets.GoBuildMainFile, presets.GoRunBinary, "explicit entry point"},
 		},
 	},
 	{
 		name: "python", display: "Python",
 		options: []Option{
-			{"python3 main.py", "python3 main.py", "run with python3"},
-			{"python main.py", "python main.py", "run with python"},
+			{"python3 main.py", "", "python3 main.py", "run with python3"},
+			{"python main.py", "", "python main.py", "run with python"},
 		},
 	},
 	{
 		name: "rust", display: "Rust",
 		options: []Option{
-			// Command is stored for local reference; the runner always uses a
-			// canonical Cargo release build and run on the server.
-			{"Cargo project", "cargo run", "Cargo.toml + src/main.rs; platform runs release build & run"},
+			{"Cargo project", presets.RustBuildRelease, presets.RustRunRelease, "Cargo.toml + src/main.rs; platform runs release build & run"},
 		},
 	},
 	{
 		name: "java", display: "Java",
 		options: []Option{
-			{"javac *.java && java Main", "javac *.java && java Main", "all .java files in project root; entry class Main"},
+			{"javac *.java && java Main", "mkdir -p .95classes && javac -d .95classes *.java", "java -cp /submission/.95classes Main", "all .java files in project root; entry class Main"},
 		},
 	},
 	{
 		name: "javascript", display: "JavaScript",
 		options: []Option{
-			{"node index.js", "node index.js", "run with node"},
-			{"node main.js", "node main.js", "explicit entry point"},
+			{"node index.js", "", "node index.js", "run with node"},
+			{"node main.js", "", "node main.js", "explicit entry point"},
 		},
 	},
 	{
 		name: "typescript", display: "TypeScript",
 		options: []Option{
-			{"ts-node main.ts", "ts-node main.ts", "run with ts-node"},
-			{"npx ts-node main.ts", "npx ts-node main.ts", "run with npx ts-node"},
+			{"ts-node main.ts", "", "ts-node main.ts", "run with ts-node"},
+			{"npx ts-node main.ts", "", "npx ts-node main.ts", "run with npx ts-node"},
 		},
 	},
 	{
 		name: "c", display: "C",
 		options: []Option{
-			{"make && ./app", "make && chmod +x app && ./app", "build with make, then run ./app"},
-			{"gcc main.c -o app && ./app", "gcc main.c -o app && ./app", "compile with gcc, then run"},
+			{"make && ./app", "make", "chmod +x app && ./app", "build with make, then run ./app"},
+			{"gcc main.c -o app && ./app", "gcc main.c -o app", "./app", "compile with gcc, then run"},
 		},
 	},
 	{
 		name: "cpp", display: "C++",
 		options: []Option{
-			{"make && ./app", "make && chmod +x app && ./app", "build with make, then run ./app"},
-			{"g++ main.cpp -o app && ./app", "g++ main.cpp -o app && ./app", "compile with g++, then run"},
-			{"clang++ main.cpp -o app && ./app", "clang++ main.cpp -o app && ./app", "compile with clang++, then run"},
+			{"make && ./app", "make", "chmod +x app && ./app", "build with make, then run ./app"},
+			{"g++ main.cpp -o app && ./app", "g++ main.cpp -o app", "./app", "compile with g++, then run"},
+			{"clang++ main.cpp -o app && ./app", "clang++ main.cpp -o app", "./app", "compile with clang++, then run"},
 		},
 	},
 	{
 		name: "ruby", display: "Ruby",
 		options: []Option{
-			{"ruby main.rb", "ruby main.rb", "run with ruby"},
+			{"ruby main.rb", "", "ruby main.rb", "run with ruby"},
 		},
 	},
 	{
 		name: "elixir", display: "Elixir",
 		options: []Option{
-			{"elixir main.exs", "elixir main.exs", "run script with elixir"},
-			{"mix run", "mix run", "run with mix"},
+			{"elixir main.exs", "", "elixir main.exs", "run script with elixir"},
+			{"mix run", "", "mix run", "run with mix"},
 		},
 	},
 	{
 		name: "haskell", display: "Haskell",
 		options: []Option{
-			{"runhaskell main.hs", "runhaskell main.hs", "interpret with runhaskell"},
-			{"ghc main.hs -o app && ./app", "ghc main.hs -o app && ./app", "compile with ghc, then run"},
+			{"runhaskell main.hs", "", "runhaskell main.hs", "interpret with runhaskell"},
+			{"ghc main.hs -o app && ./app", "ghc main.hs -o app", "./app", "compile with ghc, then run"},
 		},
 	},
 	{
 		name: "zig", display: "Zig",
 		options: []Option{
-			{"zig run main.zig", "zig run main.zig", "run with zig"},
-			{"zig build run", "zig build run", "build and run"},
+			{"zig run main.zig", "", "zig run main.zig", "run with zig"},
+			{"zig build run", "", "zig build run", "build and run"},
 		},
 	},
 	{
 		name: "kotlin", display: "Kotlin",
 		options: []Option{
-			{"kotlinc main.kt -include-runtime -d app.jar && java -jar app.jar", "kotlinc main.kt -include-runtime -d app.jar && java -jar app.jar", "compile, then run"},
-			{"kotlin main.kt", "kotlin main.kt", "run as script"},
+			{"kotlinc main.kt -include-runtime -d app.jar && java -jar app.jar", "kotlinc main.kt -include-runtime -d app.jar", "java -jar app.jar", "compile, then run"},
+			{"kotlin main.kt", "", "kotlin main.kt", "run as script"},
 		},
 	},
 	{
 		name: "swift", display: "Swift",
 		options: []Option{
-			{"swift main.swift", "swift main.swift", "run with swift"},
-			{"swift run", "swift run", "run with swift package manager"},
+			{"swift main.swift", "", "swift main.swift", "run with swift"},
+			{"swift run", "", "swift run", "run with swift package manager"},
 		},
 	},
 }

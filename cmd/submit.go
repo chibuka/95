@@ -17,6 +17,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 	"github.com/chibuka/95-cli/client"
 	"github.com/chibuka/95-cli/internal/config"
+	"github.com/chibuka/95-cli/internal/presets"
 	"github.com/chibuka/95-cli/ui/logview"
 )
 
@@ -59,6 +60,13 @@ func sendAndStream(stageUuid, endpointPath, opName, successHint string) error {
 	}
 	if projectCfg.RunCommand == "" {
 		return fmt.Errorf("no run command found — run '95 init' first")
+	}
+	if upgradedBuild, upgradedRun, ok := presets.UpgradeLegacyBuildRun(projectCfg.Language, projectCfg.BuildCommand, projectCfg.RunCommand); ok {
+		projectCfg.BuildCommand = upgradedBuild
+		projectCfg.RunCommand = upgradedRun
+		if err := config.SaveProjectConfig(projectCfg.BuildCommand, projectCfg.RunCommand, projectCfg.Language); err != nil {
+			return fmt.Errorf("failed to upgrade project config: %w", err)
+		}
 	}
 
 	globalCfg, err := config.Load()

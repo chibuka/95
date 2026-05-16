@@ -154,6 +154,7 @@ func SaveProjectConfig(buildCommand, runCommand, language string) error {
 	v.AddConfigPath(currDir)
 	v.SetConfigName("config")
 	v.SetConfigType("json")
+	_ = v.ReadInConfig()
 	v.Set("buildCommand", buildCommand)
 	v.Set("runCommand", runCommand)
 	v.Set("language", language)
