@@ -17,6 +17,7 @@ import (
 var rootCmd = &cobra.Command{
 	Use:           "95",
 	Short:         "Practice coding challenges and level up your skills",
+	Example:       "  95 login --headless   Print the GitHub login URL instead of opening a browser",
 	SilenceUsage:  true,
 	SilenceErrors: true,
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
@@ -78,7 +79,7 @@ func runInteractive(prevErrMsg, updateNotice string) error {
 		var runErr error
 		switch action.Command {
 		case "login":
-			runErr = doLogin()
+			runErr = doLogin(false)
 		case "init":
 			runErr = doInit()
 		case "update":

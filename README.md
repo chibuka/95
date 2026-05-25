@@ -31,6 +31,7 @@ Notes (Windows only):
 - `go install github.com/chibuka/95-cli/cmd/95@latest` is required on Windows so the binary is `95.exe` (installing the module root would produce `95-cli.exe`).
 - This requires Go (1.24+ recommended). Binaries land in `%USERPROFILE%\go\bin` by default.
 - Go does **not** always update your PATH automatically. If `95` is not found, add `%USERPROFILE%\go\bin` to your user PATH.
+- If you are using WSL and the browser does not open automatically, run `95 login --headless` and open the printed URL in your Windows browser.
 
 ### Manual Installation
 

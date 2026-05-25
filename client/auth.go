@@ -26,18 +26,26 @@ type AuthResponse struct {
 
 var ErrTimeout = errors.New("authentication timed out — please try again")
 
-func Login() error {
+type LoginOptions struct {
+	Headless bool
+}
+
+func Login(options LoginOptions) error {
 	apiURL := getAPIURL()
 	sessionID := uuid.New().String()
 	oauthURL := fmt.Sprintf("%s/oauth2/cli-login?session=%s", apiURL, sessionID)
 
-	fmt.Println("Opening browser for GitHub login...")
-	err := openOAuthURL(oauthURL)
-	if err != nil {
-		fmt.Println("Could not open a browser automatically.")
+	if options.Headless {
 		fmt.Printf("Open this URL manually to continue login:\n%s\n", oauthURL)
-		fmt.Println("If you are in WSL, install wslu and try again:")
-		fmt.Println("sudo apt install -y wslu")
+	} else {
+		fmt.Println("Opening browser for GitHub login...")
+		err := openOAuthURL(oauthURL)
+		if err != nil {
+			fmt.Println("Could not open a browser automatically.")
+			fmt.Printf("Open this URL manually to continue login:\n%s\n", oauthURL)
+			fmt.Println("If you are in WSL, install wslu and try again:")
+			fmt.Println("sudo apt install -y wslu")
+		}
 	}
 
 	fmt.Println("Waiting for authentication...")

@@ -8,7 +8,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func doLogin() error {
+var loginHeadless bool
+
+func doLogin(headless bool) error {
 	var (
 		orange = lipgloss.NewStyle().Foreground(lipgloss.Color("208")).Bold(true)
 		green  = lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Bold(true)
@@ -18,10 +20,14 @@ func doLogin() error {
 
 	fmt.Println(muted.Render("  ◇ Authenticating"))
 	fmt.Println()
-	fmt.Println("  " + dim.Render("● Opening browser for GitHub OAuth..."))
+	if headless {
+		fmt.Println("  " + dim.Render("● Starting manual GitHub OAuth..."))
+	} else {
+		fmt.Println("  " + dim.Render("● Opening browser for GitHub OAuth..."))
+	}
 	fmt.Println()
 
-	if err := client.Login(); err != nil {
+	if err := client.Login(client.LoginOptions{Headless: headless}); err != nil {
 		fmt.Println("  " + orange.Render("✗ "+err.Error()))
 		fmt.Println()
 		return err
@@ -34,13 +40,15 @@ func doLogin() error {
 }
 
 var loginCmd = &cobra.Command{
-	Use:   "login",
-	Short: "Authenticate with GitHub OAuth",
+	Use:     "login",
+	Short:   "Authenticate with GitHub OAuth",
+	Example: "  95 login --headless   Print the GitHub login URL instead of opening a browser",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		return doLogin()
+		return doLogin(loginHeadless)
 	},
 }
 
 func init() {
+	loginCmd.Flags().BoolVar(&loginHeadless, "headless", false, "print the GitHub login URL instead of opening a browser")
 	rootCmd.AddCommand(loginCmd)
 }
