@@ -3,8 +3,6 @@ package logview
 import (
 	"strings"
 	"testing"
-
-	"github.com/charmbracelet/lipgloss"
 )
 
 func TestParseLogsSplitsFailureTranscript(t *testing.T) {
@@ -86,6 +84,109 @@ func TestParseLogsPreservesBlankLinesInActualOutput(t *testing.T) {
 	}
 }
 
+func TestParseLogsTreatsLowercaseExpectedStdoutAsAssertionBoundary(t *testing.T) {
+	raw := strings.Join([]string{
+		"Running tests for single document single chunk",
+		"$ ./your_program.sh <<EOF",
+		`{"documents":[{"id":"doc-1","text":"Databases store data."}]}`,
+		"EOF",
+		"Your program output:",
+		"  Entire Input:",
+		`  {"documents":[{"id":"doc-1","text":"Databases store data."}]}`,
+		"expected stdout to be valid JSON: invalid character 'E' looking for beginning of value",
+	}, "\n")
+
+	got := parseLogs(raw)
+
+	if strings.Join(got.actualOutput, "\n") != "Entire Input:\n{\"documents\":[{\"id\":\"doc-1\",\"text\":\"Databases store data.\"}]}" {
+		t.Fatalf("actualOutput = %#v", got.actualOutput)
+	}
+	if got.assertion != "expected stdout to be valid JSON: invalid character 'E' looking for beginning of value" {
+		t.Fatalf("assertion = %q", got.assertion)
+	}
+}
+
+func TestRenderFloorShowsStandaloneAssertionAfterExpectedStdoutComparison(t *testing.T) {
+	rendered := RenderFloor(FloorResult{
+		Number: 1,
+		Passed: false,
+		Logs: strings.Join([]string{
+			"Running tests",
+			`Expected stdout "{\n  \"chunks\": []\n}", got "Entire Input:\n{}"`,
+			"expected stdout to be valid JSON: invalid character 'E' looking for beginning of value",
+		}, "\n"),
+	})
+
+	for _, want := range []string{"Your stdout", "Expected stdout", "Assertion", "expected stdout to be valid JSON"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("rendered output missing %q:\n%s", want, rendered)
+		}
+	}
+}
+
+func TestParseLogsKeepsExpectedStdoutAssertionOutOfNotes(t *testing.T) {
+	raw := strings.Join([]string{
+		"Running tests for single document multiple chunks",
+		"Running chunking case: single document with multiple sentences",
+		`Expected stdout "{\n  \"chunks\": []\n}", got "{\"chunks\":[]}"`,
+		`chunk[1].text: expected "Indexes make lookups faster.", got "Indexes\nmake lookups faster."`,
+		"Test failed",
+	}, "\n")
+
+	got := parseLogs(raw)
+
+	for _, note := range got.notes {
+		if strings.HasPrefix(note, "chunk[1].text") {
+			t.Fatalf("assertion leaked into notes: %#v", got.notes)
+		}
+	}
+	if got.assertion != `chunk[1].text: expected "Indexes make lookups faster.", got "Indexes\nmake lookups faster."` {
+		t.Fatalf("assertion = %q", got.assertion)
+	}
+}
+
+func TestRenderFloorShowsQuotedChunkMismatchAssertion(t *testing.T) {
+	rendered := RenderFloor(FloorResult{
+		Number: 1,
+		Passed: false,
+		Logs: strings.Join([]string{
+			"Running tests for single document multiple chunks",
+			"Running chunking case: single document with multiple sentences",
+			"Cases: 0/3 passed",
+			`Expected stdout "{\n  \"chunks\": []\n}", got "{\"chunks\":[]}"`,
+			`chunk[1].text: expected "Indexes make lookups faster.", got "Indexes\nmake lookups faster."`,
+			"Test failed",
+		}, "\n"),
+	})
+
+	for _, want := range []string{"Floor 1 · 0/3 cases passed", "Expected stdout", "Assertion", "chunk[1].text"} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("rendered output missing %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(rendered, "Cases: 0/3 passed") {
+		t.Fatalf("case summary leaked into body:\n%s", rendered)
+	}
+}
+
+func TestRenderFloorInfersChunkingCaseProgressWhenSummaryLineIsMissing(t *testing.T) {
+	rendered := RenderFloor(FloorResult{
+		Number: 2,
+		Passed: false,
+		Logs: strings.Join([]string{
+			"Running tests for multiple documents",
+			"Running chunking case: multiple documents keep their source references",
+			`Expected stdout "{\n  \"chunks\": []\n}", got "{\"chunks\":[]}"`,
+			`chunk[2].chunk_index: expected 0, got 2`,
+			"Test failed",
+		}, "\n"),
+	})
+
+	if !strings.Contains(rendered, "Floor 2 · 0/3 cases passed") {
+		t.Fatalf("rendered output missing inferred case progress:\n%s", rendered)
+	}
+}
+
 func TestRenderFloorShowsStructuredSections(t *testing.T) {
 	rendered := RenderFloor(FloorResult{
 		Number: 2,
@@ -109,12 +210,13 @@ func TestRenderFloorShowsStructuredSections(t *testing.T) {
 	}
 }
 
-func TestRenderFloorKeepsPanelCompact(t *testing.T) {
+func TestRenderFloorDoesNotArtificiallyWrapLongLines(t *testing.T) {
+	longLine := "Running tests for a very long scenario name that should stay on one rendered line instead of being split by the CLI formatter"
 	rendered := RenderFloor(FloorResult{
 		Number: 2,
 		Passed: false,
 		Logs: strings.Join([]string{
-			"Running tests for a very long scenario name that should wrap instead of widening the panel forever",
+			longLine,
 			"$ ./your_program.sh <<EOF",
 			"CAPACITY 2",
 			"EOF",
@@ -122,9 +224,28 @@ func TestRenderFloorKeepsPanelCompact(t *testing.T) {
 		}, "\n"),
 	})
 
-	for _, line := range strings.Split(rendered, "\n") {
-		if width := lipgloss.Width(line); width > 80 {
-			t.Fatalf("line width = %d, want <= 80:\n%s\n\nfull output:\n%s", width, line, rendered)
+	if !strings.Contains(rendered, longLine) {
+		t.Fatalf("long line was artificially wrapped:\n%s", rendered)
+	}
+}
+
+func TestParseLogsPrefersStructuredComparisonActual(t *testing.T) {
+	raw := strings.Join([]string{
+		"Your program output:",
+		`  {"chunks":[{"document_id":"doc-1","chunk_index":1,"text":" Indexes make lookups faster."}]}`,
+		`Expected stdout "{\n  \"chunks\": []\n}", got "{\n  \"chunks\": [\n    {\n      \"document_id\": \"doc-1\",\n      \"chunk_index\": 1,\n      \"text\": \" Indexes make lookups faster.\"\n    }\n  ]\n}"`,
+		`chunk[1].text: expected "Indexes make lookups faster.", got " Indexes make lookups faster."`,
+	}, "\n")
+
+	got := parseLogs(raw)
+	actual := strings.Join(got.actualOutput, "\n")
+
+	for _, want := range []string{
+		`"chunks": [`,
+		`"text": " Indexes make lookups faster."`,
+	} {
+		if !strings.Contains(actual, want) {
+			t.Fatalf("actual output missing %q:\n%s", want, actual)
 		}
 	}
 }
