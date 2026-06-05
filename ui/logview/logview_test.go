@@ -145,7 +145,7 @@ func TestParseLogsKeepsExpectedStdoutAssertionOutOfNotes(t *testing.T) {
 	}
 }
 
-func TestRenderFloorShowsQuotedChunkMismatchAssertion(t *testing.T) {
+func TestRenderFloorShowsQuotedChunkMismatchComparison(t *testing.T) {
 	rendered := RenderFloor(FloorResult{
 		Number: 1,
 		Passed: false,
@@ -159,13 +159,74 @@ func TestRenderFloorShowsQuotedChunkMismatchAssertion(t *testing.T) {
 		}, "\n"),
 	})
 
-	for _, want := range []string{"Floor 1 · 0/3 cases passed", "Expected stdout", "Assertion", "chunk[1].text"} {
+	for _, want := range []string{"Floor 1 · 0/3 cases passed", "Expected stdout", "Expected", "Actual", "chunk[1].text"} {
 		if !strings.Contains(rendered, want) {
 			t.Fatalf("rendered output missing %q:\n%s", want, rendered)
 		}
 	}
+	if strings.Contains(rendered, "Assertion") {
+		t.Fatalf("comparison should render as expected/actual sections:\n%s", rendered)
+	}
 	if strings.Contains(rendered, "Cases: 0/3 passed") {
 		t.Fatalf("case summary leaked into body:\n%s", rendered)
+	}
+}
+
+func TestParseLogsKeepsStandaloneComparisonOutOfActualOutput(t *testing.T) {
+	raw := strings.Join([]string{
+		"Your program output:",
+		`  {"chunks":[{"id":"doc-1:0","text":"Alpha one. Beta two."}]}`,
+		`chunk[1].text: expected "two. Gamma three. Delta four.", got "Gamma three. Delta four."`,
+		"Test failed",
+	}, "\n")
+
+	got := parseLogs(raw)
+	actual := strings.Join(got.actualOutput, "\n")
+
+	if strings.Contains(actual, "chunk[1].text") {
+		t.Fatalf("comparison leaked into actual output:\n%s", actual)
+	}
+	if !got.hasComparison {
+		t.Fatalf("expected comparison to be parsed: %#v", got)
+	}
+	if got.comparison.Subject != "chunk[1].text" {
+		t.Fatalf("comparison subject = %q", got.comparison.Subject)
+	}
+	if got.comparison.Expected != "two. Gamma three. Delta four." {
+		t.Fatalf("comparison expected = %q", got.comparison.Expected)
+	}
+	if got.comparison.Actual != "Gamma three. Delta four." {
+		t.Fatalf("comparison actual = %q", got.comparison.Actual)
+	}
+}
+
+func TestRenderFloorSeparatesStandaloneComparison(t *testing.T) {
+	rendered := RenderFloor(FloorResult{
+		Number: 9,
+		Passed: false,
+		Logs: strings.Join([]string{
+			"Running tests for chunk overlap",
+			"Running chunking case: add chunk_overlap between adjacent chunks",
+			"Your program output:",
+			`  {"chunks":[{"id":"doc-1:0","text":"Alpha one. Beta two."}]}`,
+			`chunk[1].text: expected "two. Gamma three. Delta four.", got "Gamma three. Delta four."`,
+			"Test failed",
+		}, "\n"),
+	})
+
+	for _, want := range []string{
+		"Your stdout",
+		"Expected",
+		"Actual",
+		"chunk[1].text: two. Gamma three. Delta four.",
+		"chunk[1].text: Gamma three. Delta four.",
+	} {
+		if !strings.Contains(rendered, want) {
+			t.Fatalf("rendered output missing %q:\n%s", want, rendered)
+		}
+	}
+	if strings.Contains(rendered, `chunk[1].text: expected "two. Gamma three. Delta four."`) {
+		t.Fatalf("raw comparison leaked into rendered output:\n%s", rendered)
 	}
 }
 

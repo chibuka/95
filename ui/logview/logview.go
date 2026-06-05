@@ -38,7 +38,15 @@ type parsedLogs struct {
 	actualOutput     []string
 	expectedVariants []string
 	assertion        string
+	comparison       valueComparison
+	hasComparison    bool
 	caseSummary      string
+}
+
+type valueComparison struct {
+	Subject  string
+	Expected string
+	Actual   string
 }
 
 var (
@@ -167,7 +175,11 @@ func renderFailureBody(logs parsedLogs) string {
 	if len(logs.expectedVariants) > 0 {
 		sections = append(sections, renderExpectedVariants(logs.expectedVariants))
 	}
-	if strings.TrimSpace(logs.assertion) != "" && (len(logs.expectedVariants) == 0 || !isExpectedStdoutComparison(logs.assertion)) {
+	if logs.hasComparison {
+		sections = append(sections, renderRawBlock("Expected", comparisonLines(logs.comparison.Subject, logs.comparison.Expected), outputStyle))
+		sections = append(sections, renderRawBlock("Actual", comparisonLines(logs.comparison.Subject, logs.comparison.Actual), outputStyle))
+	}
+	if strings.TrimSpace(logs.assertion) != "" && !logs.hasComparison && (len(logs.expectedVariants) == 0 || !isExpectedStdoutComparison(logs.assertion)) {
 		sections = append(sections, renderRawBlock("Assertion", []string{logs.assertion}, failStyle))
 	}
 	return strings.Join(sections, "\n\n")
@@ -251,8 +263,7 @@ func parseLogs(raw string) parsedLogs {
 		case trimmed == "Your program output:":
 			for i+1 < len(lines) {
 				next := strings.TrimRight(lines[i+1], "\r")
-				nextTrimmed := strings.TrimSpace(next)
-				if isBoundaryLine(nextTrimmed) {
+				if isBoundaryLine(next) {
 					break
 				}
 				i++
@@ -267,6 +278,14 @@ func parseLogs(raw string) parsedLogs {
 				if hasActual && shouldUseParsedActual(parsed.actualOutput, actualLines) {
 					parsed.actualOutput = actualLines
 				}
+			}
+			parsed.assertion = trimmed
+
+		case isValueComparisonLine(trimmed):
+			comparison, ok := parseValueComparison(trimmed)
+			if ok {
+				parsed.comparison = comparison
+				parsed.hasComparison = true
 			}
 			parsed.assertion = trimmed
 
@@ -348,9 +367,15 @@ func inferChunkingCaseSummary(line string) string {
 }
 
 func isBoundaryLine(line string) bool {
-	return hasExpectedStdoutPrefix(line) ||
-		strings.HasPrefix(line, "Test failed") ||
-		strings.HasPrefix(line, "$ ")
+	trimmed := strings.TrimSpace(line)
+	return hasExpectedStdoutPrefix(trimmed) ||
+		strings.HasPrefix(trimmed, "Test failed") ||
+		strings.HasPrefix(trimmed, "$ ") ||
+		(!isIndentedOutputLine(line) && isValueComparisonLine(trimmed))
+}
+
+func isIndentedOutputLine(line string) bool {
+	return strings.HasPrefix(line, "  ") || strings.HasPrefix(line, "     ")
 }
 
 func hasExpectedStdoutPrefix(line string) bool {
@@ -370,6 +395,65 @@ func shouldAttachToAssertion(parsed parsedLogs, line string) bool {
 	return len(parsed.expectedVariants) > 0 &&
 		strings.TrimSpace(parsed.assertion) != "" &&
 		line != "Test failed"
+}
+
+func isValueComparisonLine(line string) bool {
+	_, ok := parseValueComparison(line)
+	return ok
+}
+
+func parseValueComparison(line string) (valueComparison, bool) {
+	if hasExpectedStdoutPrefix(line) {
+		return valueComparison{}, false
+	}
+
+	const expectedMarker = ": expected "
+	const actualMarker = ", got "
+
+	expectedIndex := strings.Index(line, expectedMarker)
+	if expectedIndex <= 0 {
+		return valueComparison{}, false
+	}
+
+	rest := line[expectedIndex+len(expectedMarker):]
+	actualIndex := strings.LastIndex(rest, actualMarker)
+	if actualIndex == -1 {
+		return valueComparison{}, false
+	}
+
+	subject := strings.TrimSpace(line[:expectedIndex])
+	expected := strings.TrimSpace(rest[:actualIndex])
+	actual := strings.TrimSpace(rest[actualIndex+len(actualMarker):])
+	if subject == "" || expected == "" {
+		return valueComparison{}, false
+	}
+
+	return valueComparison{
+		Subject:  subject,
+		Expected: formatComparisonValue(expected),
+		Actual:   formatComparisonValue(actual),
+	}, true
+}
+
+func formatComparisonValue(value string) string {
+	unquoted, err := strconv.Unquote(value)
+	if err == nil {
+		return unquoted
+	}
+	return value
+}
+
+func comparisonLines(subject, value string) []string {
+	lines := strings.Split(strings.TrimSuffix(value, "\n"), "\n")
+	if len(lines) == 1 {
+		return []string{fmt.Sprintf("%s: %s", subject, lines[0])}
+	}
+
+	out := []string{subject + ":"}
+	for _, line := range lines {
+		out = append(out, "  "+line)
+	}
+	return out
 }
 
 func parseExpectedStdout(line string) ([]string, string, bool, bool) {
